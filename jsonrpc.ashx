@@ -1,0 +1,1 @@
+﻿<%@ WebHandler Class="Arena.Custom.HDC.WebService.JsonRpc" Language="C#" %>
