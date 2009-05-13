@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Configuration;
 using System.Collections;
 using Arena.Portal;
@@ -9,22 +10,32 @@ using Arena.Enums;
 
 namespace Arena.Custom.HDC.WebService
 {
+    /// <summary>
+    /// Provides the core functionality of the web service. Other
+    /// classes exist which provide the actual front-end to different
+    /// RPC providers.
+    /// </summary>
     public class Core
     {
-        #region int[] Version()
-        //
-        // Version
-        //
+        /// <summary>
+        /// Returns the version of the Arena Web Service API protocol
+        /// supported by the server. Currently this is 1.
+        /// </summary>
+        /// <returns>API Version</returns>
         static public int Version()
         {
             return 1;
         }
-        #endregion
 
-        #region int[] FindPeople(credentials, query)
-        //
-        // GetPersonID
-        //
+        /// <summary>
+        /// Queries the database to find all matching personIDs, which
+        /// are returned as an integer array. Only a single type of
+        /// search is performed in order of precedence by: Name and
+        /// birthdate; name; phone; email; birthdate; area; profiles.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        /// <param name="query">Provides the filter to use when searching for people.</param>
+        /// <returns></returns>
         static public int[] FindPeople(IDictionary credentials, IDictionary query)
         {
             PersonCollection people;
@@ -55,12 +66,15 @@ namespace Arena.Custom.HDC.WebService
 
             return (int[])personIDs.ToArray(typeof(int));
         }
-        #endregion
 
-        #region IDictionary GetPersonInformation(credentials, personID)
-        //
-        // GetPersonInformation
-        //
+        /// <summary>
+        /// Retrieves basic information about the given personID. The
+        /// PersonInfo structure is filled as much as allowed by the
+        /// users security level.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        /// <param name="personID">The ID number of the person to get the basic personal information of.</param>
+        /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
         static public IDictionary GetPersonInformation(IDictionary credentials, int personID)
         {
             Login loginUser;
@@ -105,12 +119,15 @@ namespace Arena.Custom.HDC.WebService
 
             return info;
         }
-        #endregion
 
-        #region IDictionary GetPersonContactInformation(credentials, personID)
-        //
-        // GetPersonContactInformation
-        //
+        /// <summary>
+        /// Retrieves the contact information associated with the
+        /// personID. Only information that the user has permission
+        /// to is retrieved.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        /// <param name="personID">The ID number of the person to get the contact information of.</param>
+        /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
         static public IDictionary GetPersonContactInformation(IDictionary credentials, int personID)
         {
             Login loginUser;
@@ -124,99 +141,112 @@ namespace Arena.Custom.HDC.WebService
             //
             loginUser = LoginForCredentials(credentials);
             person = new Person(personID);
+            contact["PersonID"] = person.PersonID;
 
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
+            //
+            // If the person was found then load up any contact
+            // information we have.
+            //
+            if (person.PersonID == -1)
             {
-                //
-                // Build all the addresses.
-                //
-                addressList = new ArrayList(person.Addresses.Count);
-                for (i = 0; i < person.Addresses.Count; i++)
+                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
                 {
-                    hash = new Hashtable();
-                    if (person.Addresses[i].AddressType != null)
-                        hash["AddressType"] = person.Addresses[i].AddressType.Value;
-                    hash["Primary"] = person.Addresses[i].Primary;
-                    if (person.Addresses[i].Address.StreetLine1 != "")
-                        hash["StreetLine1"] = person.Addresses[i].Address.StreetLine1;
-                    if (person.Addresses[i].Address.StreetLine2 != "")
-                        hash["StreetLine2"] = person.Addresses[i].Address.StreetLine2;
-                    if (person.Addresses[i].Address.City != "")
-                        hash["City"] = person.Addresses[i].Address.City;
-                    if (person.Addresses[i].Address.State != "")
-                        hash["State"] = person.Addresses[i].Address.State;
-                    if (person.Addresses[i].Address.PostalCode != "")
-                        hash["PostalCode"] = person.Addresses[i].Address.PostalCode;
-                    if (person.Addresses[i].Address.Area != null)
-                        hash["AreaID"] = person.Addresses[i].Address.Area.AreaID;
-                    if (person.Addresses[i].Address.Latitude != 0)
-                        hash["Latitude"] = person.Addresses[i].Address.Latitude;
-                    if (person.Addresses[i].Address.Longitude != 0)
-                        hash["Longitude"] = person.Addresses[i].Address.Longitude;
-                    if (person.Addresses[i].Notes != "")
-                        hash["Notes"] = person.Addresses[i].Notes;
+                    //
+                    // Build all the addresses.
+                    //
+                    addressList = new ArrayList(person.Addresses.Count);
+                    for (i = 0; i < person.Addresses.Count; i++)
+                    {
+                        hash = new Hashtable();
+                        if (person.Addresses[i].AddressType != null)
+                            hash["AddressType"] = person.Addresses[i].AddressType.Value;
+                        hash["Primary"] = person.Addresses[i].Primary;
+                        if (person.Addresses[i].Address.StreetLine1 != "")
+                            hash["StreetLine1"] = person.Addresses[i].Address.StreetLine1;
+                        if (person.Addresses[i].Address.StreetLine2 != "")
+                            hash["StreetLine2"] = person.Addresses[i].Address.StreetLine2;
+                        if (person.Addresses[i].Address.City != "")
+                            hash["City"] = person.Addresses[i].Address.City;
+                        if (person.Addresses[i].Address.State != "")
+                            hash["State"] = person.Addresses[i].Address.State;
+                        if (person.Addresses[i].Address.PostalCode != "")
+                            hash["PostalCode"] = person.Addresses[i].Address.PostalCode;
+                        if (person.Addresses[i].Address.Area != null)
+                            hash["AreaID"] = person.Addresses[i].Address.Area.AreaID;
+                        if (person.Addresses[i].Address.Latitude != 0)
+                            hash["Latitude"] = person.Addresses[i].Address.Latitude;
+                        if (person.Addresses[i].Address.Longitude != 0)
+                            hash["Longitude"] = person.Addresses[i].Address.Longitude;
+                        if (person.Addresses[i].Notes != "")
+                            hash["Notes"] = person.Addresses[i].Notes;
 
-                    addressList.Add(hash);
+                        addressList.Add(hash);
+                    }
+                    contact["Addresses"] = addressList;
                 }
-                contact["Addresses"] = addressList;
-            }
 
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
-            {
-                //
-                // Build all the phones.
-                //
-                phoneList = new ArrayList(person.Phones.Count);
-                for (i = 0; i < person.Phones.Count; i++)
+                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
                 {
-                    hash = new Hashtable();
-                    if (person.Phones[i].PhoneType != null)
-                        hash["PhoneType"] = person.Phones[i].PhoneType.Value;
-                    if (person.Phones[i].Number != "")
-                        hash["Number"] = person.Phones[i].Number;
-                    if (person.Phones[i].Extension != "")
-                        hash["PhoneType"] = person.Phones[i].Extension;
-                    hash["Unlisted"] = person.Phones[i].Unlisted;
-                    hash["SMS"] = person.Phones[i].SMSEnabled;
+                    //
+                    // Build all the phones.
+                    //
+                    phoneList = new ArrayList(person.Phones.Count);
+                    for (i = 0; i < person.Phones.Count; i++)
+                    {
+                        hash = new Hashtable();
+                        if (person.Phones[i].PhoneType != null)
+                            hash["PhoneType"] = person.Phones[i].PhoneType.Value;
+                        if (person.Phones[i].Number != "")
+                            hash["Number"] = person.Phones[i].Number;
+                        if (person.Phones[i].Extension != "")
+                            hash["PhoneType"] = person.Phones[i].Extension;
+                        hash["Unlisted"] = person.Phones[i].Unlisted;
+                        hash["SMS"] = person.Phones[i].SMSEnabled;
 
-                    phoneList.Add(hash);
+                        phoneList.Add(hash);
+                    }
+                    contact["Phones"] = phoneList;
                 }
-                contact["Phones"] = phoneList;
-            }
 
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
-            {
-                //
-                // Build all the emails.
-                //
-                emailList = new ArrayList(person.Emails.Count);
-                for (i = 0; i < person.Emails.Count; i++)
+                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
                 {
-                    hash = new Hashtable();
-                    if (person.Emails[i].Email != "")
-                        hash["Email"] = person.Emails[i].Email;
-                    if (person.Emails[i].Notes != "")
-                        hash["Notes"] = person.Emails[i].Notes;
-                    hash["Active"] = person.Emails[i].Active;
+                    //
+                    // Build all the emails.
+                    //
+                    emailList = new ArrayList(person.Emails.Count);
+                    for (i = 0; i < person.Emails.Count; i++)
+                    {
+                        hash = new Hashtable();
+                        if (person.Emails[i].Email != "")
+                            hash["Email"] = person.Emails[i].Email;
+                        if (person.Emails[i].Notes != "")
+                            hash["Notes"] = person.Emails[i].Notes;
+                        hash["Active"] = person.Emails[i].Active;
 
-                    emailList.Add(hash);
+                        emailList.Add(hash);
+                    }
+                    contact["Emails"] = emailList;
                 }
-                contact["Emails"] = emailList;
             }
 
             return contact;
         }
-        #endregion
 
-        #region int[] GetPersonProfiles(credentials, personID)
-        //
-        // GetPersonProfiles
-        //
-        static public int[] GetPersonProfiles(IDictionary credentials, int personID)
+        /// <summary>
+        /// Retrieves all the ministry and serving profiles that
+        /// this person is an active member of. Ministry profiles
+        /// are returned in the "ministry" key and serving profiles
+        /// are returned in the "serving" key.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        /// <param name="personID">The person we are interested in loading profiles for.</param>
+        /// <returns>Returns a dictionary of keys that point to integer arrays.</returns>
+        static public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
         {
             Login loginUser;
             Person person;
-            ArrayList personIDs;
+            ArrayList profileIDs;
+            Hashtable hash;
             ProfileCollection collection;
             int i;
 
@@ -225,33 +255,49 @@ namespace Arena.Custom.HDC.WebService
             //
             loginUser = LoginForCredentials(credentials);
             person = new Person(personID);
+            hash = new Hashtable();
 
             //
             // Load up the profiles for this person.
             //
-            collection = new ProfileCollection();
-            collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Ministry, personID, true);
-
-            //
-            // Load all the profile IDs and return them as an
-            // integer array.
-            //
-            personIDs = new ArrayList(collection.Count);
-            for (i = 0; i < collection.Count; i++)
+            if (person.PersonID != -1)
             {
-                personIDs.Add(collection[i].ProfileID);
+                //
+                // Load all the ministry profiles for this person.
+                //
+                collection = new ProfileCollection();
+                collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Ministry, personID, true);
+                profileIDs = new ArrayList();
+                for (i = 0; i < collection.Count; i++)
+                {
+                    profileIDs.Add(collection[i].ProfileID);
+                }
+                hash["ministry"] = profileIDs.ToArray(typeof(int));
+
+                //
+                // Load all the serving profiles for this person.
+                //
+                collection = new ProfileCollection();
+                collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Serving, personID, true);
+                profileIDs = new ArrayList();
+                for (i = 0; i < collection.Count; i++)
+                {
+                    profileIDs.Add(collection[i].ProfileID);
+                }
+                hash["serving"] = profileIDs.ToArray(typeof(int));
             }
 
-            return (int[])personIDs.ToArray(typeof(int));
+            return hash;
         }
-        #endregion
 
-        #region Login LoginForCredentials(credentials)
-        //
-        // Attempt to log the given user in using the credentials provided.
-        // Upon a successful login an Arena Login object is returned to identify
-        // the user. If the credentials are not valid then an exception is thrown.
-        //
+        /// <summary>
+        /// This method attempts to log the session in given the users
+        /// credentials. Currently this is done by a username/password
+        /// each web request, but later might include some cached
+        /// method of authenticating.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        /// <returns>Login class for the authenticated user. Raises UnauthorizedAccessException on invalid login.</returns>
         static private Login LoginForCredentials(IDictionary credentials)
         {
             Login loginUser;
@@ -262,13 +308,17 @@ namespace Arena.Custom.HDC.WebService
 
             return loginUser;
         }
-        #endregion
+
 
         #region Private methods for validating security.
-        //
-        // Check if the given personID has access for the operation to the
-        // given person field.
-        //
+        /// <summary>
+        /// Determines if the personID has access to perform the
+        /// indicated operation on the person field in question.
+        /// </summary>
+        /// <param name="personID">The ID number of the person whose security access we are checking.</param>
+        /// <param name="field">The ID number of the PersonField that the user wants access to.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
         static private bool PersonFieldOperationAllowed(int personID, int field, OperationType operation)
         {
             PermissionCollection permissions;
@@ -281,10 +331,14 @@ namespace Arena.Custom.HDC.WebService
             return PermissionsOperationAllowed(permissions, personID, operation);
         }
 
-        //
-        // Check if the given personID has access for the operation to the
-        // given profile (tag).
-        //
+        /// <summary>
+        /// Determines if the personID has access to perform the
+        /// indicated operation on the profile in question.
+        /// </summary>
+        /// <param name="personID">The ID number of the person whose security access we are checking.</param>
+        /// <param name="profileID">The ID number of the profile the user wants access to.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
         static private bool ProfileOperationAllowed(int personID, int profileID, OperationType operation)
         {
             PermissionCollection permissions;
@@ -297,10 +351,15 @@ namespace Arena.Custom.HDC.WebService
             return PermissionsOperationAllowed(permissions, personID, operation);
         }
 
-        //
-        // Determine if the given personID(subject) is allowed to perform the
-        // operation in the PermissionCollection.
-        //
+        /// <summary>
+        /// Checks the PermissionCollection class to determine if the
+        /// indicated operation is allowed for the person identified by
+        /// their ID number.
+        /// </summary>
+        /// <param name="permissions">The collection of permissions to check. These should be object permissions.</param>
+        /// <param name="personID">The ID number of the user whose security access we are checking.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
         static private bool PermissionsOperationAllowed(PermissionCollection permissions, int personID, OperationType operation)
         {
             RoleCollection roles;
@@ -327,11 +386,12 @@ namespace Arena.Custom.HDC.WebService
         #endregion
 
 
-        //
-        // Retrieve the default organization ID for this
-        // web service. This is retrieved via the Organization
-        // application setting in the web.config file.
-        //
+        /// <summary>
+        /// Retrieve the default organization ID for this web
+        /// service. This is retrieved via the "Organization"
+        /// application setting in the web.config file.
+        /// </summary>
+        /// <returns>An integer indicating the organization ID.</returns>
         static public int DefaultOrganizationID()
         {
             return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
