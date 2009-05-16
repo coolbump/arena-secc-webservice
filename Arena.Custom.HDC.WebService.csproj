@@ -61,7 +61,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Core.cs">
+    <Compile Include="CoreRpc.cs">
     </Compile>
     <Compile Include="JsonRpc.cs">
       <SubType>Component</SubType>
