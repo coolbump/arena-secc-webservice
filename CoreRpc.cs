@@ -13,7 +13,9 @@ namespace Arena.Custom.HDC.WebService
     /// <summary>
     /// Provides the core functionality of the web service. Other
     /// classes exist which provide the actual front-end to different
-    /// RPC providers.
+    /// RPC providers. Class methods provide anonymous functionality,
+    /// such as checking the API version. Instance methods provide
+    /// authenticated functionality, such as searching for people.
     /// </summary>
     public class CoreRpc
     {
@@ -28,7 +30,7 @@ namespace Arena.Custom.HDC.WebService
         /// exception is raised.
         /// </summary>
         /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
-        public CoreRpc(IDictionary credentials)
+        public CoreRpc(RpcCredentials credentials)
         {
             currentLogin = LoginForCredentials(credentials);
         }
@@ -51,7 +53,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="query">Provides the filter to use when searching for people.</param>
         /// <returns></returns>
-        public int[] FindPeople(IDictionary query)
+        public int[] FindPeople(RpcPeopleQuery query)
         {
             PersonCollection people;
             ArrayList personIDs;
@@ -61,8 +63,8 @@ namespace Arena.Custom.HDC.WebService
             // Find all the people matching the query.
             //
             people = new PersonCollection();
-            if (query["FirstName"] != null && query["LastName"] != null)
-                people.LoadByName((string)query["FirstName"], (string)query["LastName"]);
+            if (query.FirstName != null && query.LastName != null)
+                people.LoadByName(query.FirstName, query.LastName);
 
             //
             // Build the array of person IDs.
@@ -189,18 +191,23 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="personID">The ID number of the person to get the contact information of.</param>
         /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
-        public IDictionary GetPersonContactInformation(int personID)
+        public RpcPersonContactInformation GetPersonContactInformation(int personID)
         {
             Person person;
-            Hashtable contact = new Hashtable(), hash;
+            RpcPersonContactInformation contact;
+            RpcAddress address;
+            RpcPhone phone;
+            RpcEmail email;
             ArrayList addressList, phoneList, emailList;
             int i;
+
 
             //
             // Find the person in question.
             //
             person = new Person(personID);
-            contact["PersonID"] = person.PersonID;
+            contact = new RpcPersonContactInformation();
+            contact.PersonID = person.PersonID;
 
             //
             // If the person was found then load up any contact
@@ -216,32 +223,34 @@ namespace Arena.Custom.HDC.WebService
                     addressList = new ArrayList(person.Addresses.Count);
                     for (i = 0; i < person.Addresses.Count; i++)
                     {
-                        hash = new Hashtable();
+                        address = new RpcAddress();
+                        address.ID = person.Addresses[i].AddressID;
                         if (person.Addresses[i].AddressType != null)
-                            hash["AddressType"] = person.Addresses[i].AddressType.Value;
-                        hash["Primary"] = person.Addresses[i].Primary;
+                            address.Type = person.Addresses[i].AddressType.Value;
+                        address.Primary = person.Addresses[i].Primary;
                         if (person.Addresses[i].Address.StreetLine1 != "")
-                            hash["StreetLine1"] = person.Addresses[i].Address.StreetLine1;
+                            address.StreetLine1 = person.Addresses[i].Address.StreetLine1;
                         if (person.Addresses[i].Address.StreetLine2 != "")
-                            hash["StreetLine2"] = person.Addresses[i].Address.StreetLine2;
+                            address.StreetLine2 = person.Addresses[i].Address.StreetLine2;
                         if (person.Addresses[i].Address.City != "")
-                            hash["City"] = person.Addresses[i].Address.City;
+                            address.City = person.Addresses[i].Address.City;
                         if (person.Addresses[i].Address.State != "")
-                            hash["State"] = person.Addresses[i].Address.State;
+                            address.State = person.Addresses[i].Address.State;
                         if (person.Addresses[i].Address.PostalCode != "")
-                            hash["PostalCode"] = person.Addresses[i].Address.PostalCode;
+                            address.PostalCode = person.Addresses[i].Address.PostalCode;
                         if (person.Addresses[i].Address.Area != null)
-                            hash["AreaID"] = person.Addresses[i].Address.Area.AreaID;
+                            address.AreaID = person.Addresses[i].Address.Area.AreaID;
                         if (person.Addresses[i].Address.Latitude != 0)
-                            hash["Latitude"] = person.Addresses[i].Address.Latitude;
+                            address.Latitude = person.Addresses[i].Address.Latitude;
                         if (person.Addresses[i].Address.Longitude != 0)
-                            hash["Longitude"] = person.Addresses[i].Address.Longitude;
+                            address.Longitude = person.Addresses[i].Address.Longitude;
                         if (person.Addresses[i].Notes != "")
-                            hash["Notes"] = person.Addresses[i].Notes;
+                            address.Notes = person.Addresses[i].Notes;
 
-                        addressList.Add(hash);
+                        addressList.Add(address);
                     }
-                    contact["Addresses"] = addressList;
+
+                    contact.Addresses = (RpcAddress[])addressList.ToArray(typeof(RpcAddress));
                 }
 
                 if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
@@ -252,19 +261,20 @@ namespace Arena.Custom.HDC.WebService
                     phoneList = new ArrayList(person.Phones.Count);
                     for (i = 0; i < person.Phones.Count; i++)
                     {
-                        hash = new Hashtable();
+                        phone = new RpcPhone();
                         if (person.Phones[i].PhoneType != null)
-                            hash["PhoneType"] = person.Phones[i].PhoneType.Value;
+                            phone.Type = person.Phones[i].PhoneType.Value;
                         if (person.Phones[i].Number != "")
-                            hash["Number"] = person.Phones[i].Number;
+                            phone.Number = person.Phones[i].Number;
                         if (person.Phones[i].Extension != "")
-                            hash["PhoneType"] = person.Phones[i].Extension;
-                        hash["Unlisted"] = person.Phones[i].Unlisted;
-                        hash["SMS"] = person.Phones[i].SMSEnabled;
+                            phone.Ext = person.Phones[i].Extension;
+                        phone.Unlisted = person.Phones[i].Unlisted;
+                        phone.Sms = person.Phones[i].SMSEnabled;
 
-                        phoneList.Add(hash);
+                        phoneList.Add(phone);
                     }
-                    contact["Phones"] = phoneList;
+
+                    contact.Phones = (RpcPhone[])phoneList.ToArray(typeof(RpcPhone));
                 }
 
                 if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
@@ -275,16 +285,18 @@ namespace Arena.Custom.HDC.WebService
                     emailList = new ArrayList(person.Emails.Count);
                     for (i = 0; i < person.Emails.Count; i++)
                     {
-                        hash = new Hashtable();
+                        email = new RpcEmail();
+                        email.ID = person.Emails[i].EmailId;
                         if (person.Emails[i].Email != "")
-                            hash["Email"] = person.Emails[i].Email;
+                            email.Email = person.Emails[i].Email;
                         if (person.Emails[i].Notes != "")
-                            hash["Notes"] = person.Emails[i].Notes;
-                        hash["Active"] = person.Emails[i].Active;
+                            email.Notes = person.Emails[i].Notes;
+                        email.Active = person.Emails[i].Active;
 
-                        emailList.Add(hash);
+                        emailList.Add(email);
                     }
-                    contact["Emails"] = emailList;
+
+                    contact.Emails = (RpcEmail[])emailList.ToArray(typeof(RpcEmail));
                 }
             }
 
@@ -299,11 +311,11 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="personID">The person we are interested in loading profiles for.</param>
         /// <returns>Returns a dictionary of keys that point to integer arrays.</returns>
-        public IDictionary GetPersonProfiles(int personID)
+        public RpcProfileList GetPersonProfiles(int personID)
         {
             Person person;
             ArrayList profileIDs;
-            Hashtable hash;
+            RpcProfileList list;
             ProfileCollection collection;
             int i;
 
@@ -311,8 +323,8 @@ namespace Arena.Custom.HDC.WebService
             // Find the person in question.
             //
             person = new Person(personID);
-            hash = new Hashtable();
-            
+            list = new RpcProfileList();
+
             //
             // Load up the profiles for this person.
             //
@@ -330,7 +342,7 @@ namespace Arena.Custom.HDC.WebService
                     {
                         profileIDs.Add(collection[i].ProfileID);
                     }
-                    hash["ministry"] = profileIDs.ToArray(typeof(int));
+                    list.Ministry = (int[])profileIDs.ToArray(typeof(int));
                 }
 
                 if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Serving_Tags, OperationType.View) == true)
@@ -345,23 +357,23 @@ namespace Arena.Custom.HDC.WebService
                     {
                         profileIDs.Add(collection[i].ProfileID);
                     }
-                    hash["serving"] = profileIDs.ToArray(typeof(int));
+                    list.Serving = (int[])profileIDs.ToArray(typeof(int));
                 }
             }
 
-            return hash;
+            return list;
         }
 
-        public IDictionary GetProfileInformation(IDictionary credentials, int profileID) { return null; }
+        public RpcProfileDetails GetProfileDetails(int profileID) { return null; }
         public int[] GetProfileChildren(int profileID) { return null; }
         public int[] GetProfileRoots(int profileType) { return null; }
         public int[] GetProfileMembers(int profileID) { return null; }
         public int[] GetProfileOccurrences(int profileID) { return null; }
 
         public int[] GetSmallGroupClusters(int clusterID) { return null; }
-        public IDictionary GetSmallGroupClusterDetails(int clusterID) { return null; }
+        public RpcSmallGroupClusterDetails GetSmallGroupClusterDetails(int clusterID) { return null; }
         public int[] GetSmallGroups(int clusterID) { return null; }
-        public IDictionary GetSmallGroupDetails(int groupID) { return null; }
+        public RpcSmallGroupDetails GetSmallGroupDetails(int groupID) { return null; }
         public int[] GetSmallGroupMembers(int groupID) { return null; }
         public int[] GetSmallGroupOccurrences(int groupID) { return null; }
 
@@ -373,13 +385,13 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <returns>Login class for the authenticated user. Raises UnauthorizedAccessException on invalid login.</returns>
-        private Login LoginForCredentials(IDictionary credentials)
+        private Login LoginForCredentials(RpcCredentials credentials)
         {
             Login loginUser;
 
-            loginUser = new Login((string)credentials["UserName"]);
-//            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase((string)credentials["Password"]) == false)
-//                throw new UnauthorizedAccessException("Invalid username or password.");
+            loginUser = new Login(credentials.UserName);
+            //            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase(credentials.Password) == false)
+            //                throw new UnauthorizedAccessException("Invalid username or password.");
 
             return loginUser;
         }
@@ -402,7 +414,7 @@ namespace Arena.Custom.HDC.WebService
             // Load the permissions.
             //
             permissions = new PermissionCollection(ObjectType.PersonField, field);
-            
+
             return PermissionsOperationAllowed(permissions, personID, operation);
         }
 
@@ -472,4 +484,136 @@ namespace Arena.Custom.HDC.WebService
             return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
         }
     }
+
+    #region Data structures used in RPC communication
+
+    /// <summary>
+    /// Provides the authentication credentials required to
+    /// call any of the instance methods. Currently the only
+    /// authentication scheme supported in this version is
+    /// username/password authentication. Later versions will
+    /// support a single login and then use a session key to
+    /// continue working in that session.
+    /// </summary>
+    public class RpcCredentials
+    {
+        /// <summary>
+        /// The login id (username) to use for authenticating this
+        /// session.
+        /// </summary>
+        public string UserName;
+        /// <summary>
+        /// Password associated with the login id.
+        /// </summary>
+        public string Password;
+    }
+
+    /// <summary>
+    /// Collection of profile IDs of the different profile types.
+    /// Generally this would be used when retrieving the profiles
+    /// of a person, but I suppose it could be used elsewhere too.
+    /// </summary>
+    public class RpcProfileList
+    {
+        /// <summary>
+        /// Integer array of ministry profile IDs.
+        /// </summary>
+        public int[] Ministry;
+        /// <summary>
+        /// Integer array of serving profile IDs.
+        /// </summary>
+        public int[] Serving;
+        /// <summary>
+        /// Integer array of event profile IDs.
+        /// TODO: Need to support event profiles. How is security
+        /// handled in this case?
+        /// </summary>
+        public int[] Event;
+    }
+
+    /// <summary>
+    /// Defines the information needed to specify a single mailing
+    /// address. When retrieving all available fields are filled
+    /// in. When updating an existing address only non-null fields
+    /// are updated. When adding a new address only non-null fields
+    /// are used.
+    /// </summary>
+    public class RpcAddress
+    {
+        public int ID;
+        public string Type;
+        public bool Primary;
+        public string StreetLine1;
+        public string StreetLine2;
+        public string City;
+        public string State;
+        public string PostalCode;
+        public int AreaID;
+        public double Latitude;
+        public double Longitude;
+        public string Notes;
+    }
+
+    /// <summary>
+    /// Defines an e-mail address in the system. When retrieving an
+    /// e-mail address all available fields are filled in. When
+    /// updating an address only non-null fields are updated and
+    /// only non-null fields are used when creating a new e-mail
+    /// address.
+    /// </summary>
+    public class RpcEmail
+    {
+        public int ID;
+        public string Email;
+        public string Notes;
+        public bool Active;
+    }
+
+    /// <summary>
+    /// Specifies the information needed to communicate a single
+    /// phone number over RPC. On retrieval all available fields
+    /// are filled in. When updating or creating a new phone number
+    /// entry only non-null fields are used. Since no ID number is
+    /// tied to phone number entries the Type must be set correctly
+    /// to identify which phone they are adding or updating.
+    /// </summary>
+    public class RpcPhone
+    {
+        public string Type;
+        public string Number;
+        public string Ext;
+        public bool Unlisted;
+        public bool Sms;
+    }
+
+    /// <summary>
+    /// Identifies the contact information for a person. Each
+    /// person can have zero, one or multiple postal addresses,
+    /// e-mails and phone numbers. If access is denied to a
+    /// specific type of contact information then that field
+    /// may be completely unlisted.
+    /// </summary>
+    public class RpcPersonContactInformation
+    {
+        public int PersonID;
+        public RpcAddress[] Addresses;
+        public RpcEmail[] Emails;
+        public RpcPhone[] Phones;
+    }
+
+    public class RpcProfileDetails { }
+
+    public class RpcPeopleQuery
+    {
+        public string FirstName;
+        public string LastName;
+    }
+
+    public class RpcPersonInformation { }
+
+    public class RpcSmallGroupClusterDetails { }
+
+    public class RpcSmallGroupDetails { }
+
+    #endregion
 }
