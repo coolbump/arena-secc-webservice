@@ -15,8 +15,24 @@ namespace Arena.Custom.HDC.WebService
     /// classes exist which provide the actual front-end to different
     /// RPC providers.
     /// </summary>
-    public class Core
+    public class CoreRpc
     {
+        /// <summary>
+        /// The currently authenticated Arena.Login user.
+        /// </summary>
+        private Login currentLogin;
+
+        /// <summary>
+        /// Creates an instance of the WebService.Core class with the given
+        /// login credentials. If the credentials are invalid then an
+        /// exception is raised.
+        /// </summary>
+        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
+        public CoreRpc(IDictionary credentials)
+        {
+            currentLogin = LoginForCredentials(credentials);
+        }
+
         /// <summary>
         /// Returns the version of the Arena Web Service API protocol
         /// supported by the server. Currently this is 1.
@@ -33,20 +49,13 @@ namespace Arena.Custom.HDC.WebService
         /// search is performed in order of precedence by: Name and
         /// birthdate; name; phone; email; birthdate; area; profiles.
         /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <param name="query">Provides the filter to use when searching for people.</param>
         /// <returns></returns>
-        static public int[] FindPeople(IDictionary credentials, IDictionary query)
+        public int[] FindPeople(IDictionary query)
         {
             PersonCollection people;
             ArrayList personIDs;
-            Login loginUser;
             int i;
-
-            //
-            // Attempt to login.
-            //
-            loginUser = LoginForCredentials(credentials);
 
             //
             // Find all the people matching the query.
@@ -72,19 +81,16 @@ namespace Arena.Custom.HDC.WebService
         /// PersonInfo structure is filled as much as allowed by the
         /// users security level.
         /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <param name="personID">The ID number of the person to get the basic personal information of.</param>
         /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
-        static public IDictionary GetPersonInformation(IDictionary credentials, int personID)
+        public IDictionary GetPersonInformation(int personID)
         {
-            Login loginUser;
             Person person;
             Hashtable info = new Hashtable();
 
             //
-            // Log the user in and find the person in question.
+            // Find the person in question.
             //
-            loginUser = LoginForCredentials(credentials);
             person = new Person(personID);
 
             //
@@ -93,28 +99,84 @@ namespace Arena.Custom.HDC.WebService
             // we don't need to continue.
             //
             info["PersonID"] = person.PersonID;
-            info["Age"] = -1;
-            info["BirthDate"] = new DateTime(1900, 1, 1);
             if (person.PersonID == -1)
                 return info;
 
             //
             // Retrieve all the fields the user has access to.
             //
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Name, OperationType.View))
+            if (person.MemberStatus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Member_Status, OperationType.View))
+            {
+                info["MemberStatus"] = person.MemberStatus.Value;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
+            {
+                info["RecordStatus"] = person.RecordStatus;
+            }
+            if (person.Campus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Campus, OperationType.View))
+            {
+                info["Campus"] = person.Campus.CampusId;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Staff_Member, OperationType.View))
+            {
+                info["Staff"] = person.StaffMember;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Name, OperationType.View))
             {
                 info["FirstName"] = person.FirstName;
                 info["LastName"] = person.LastName;
-                info["MiddleName"] = person.MiddleName;
-                info["NickName"] = person.NickName;
+                if (person.MiddleName != "")
+                {
+                    info["MiddleName"] = person.MiddleName;
+                }
+                if (person.NickName != "")
+                {
+                    info["NickName"] = person.NickName;
+                }
             }
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Family_Information, OperationType.View))
+            {
+                info["FamilyID"] = person.FamilyId;
+            }
+            if (person.BirthDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
             {
                 info["BirthDate"] = person.BirthDate;
             }
-            if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Age, OperationType.View))
+            if (person.Age != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Age, OperationType.View))
             {
                 info["Age"] = person.Age;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Gender, OperationType.View))
+            {
+                info["Gender"] = person.Gender;
+            }
+            if (person.MaritalStatus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
+            {
+                info["MaritalStatus"] = person.MaritalStatus.Value;
+            }
+            if (person.AnniversaryDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
+            {
+                info["Anniversary"] = person.AnniversaryDate;
+            }
+            if (person.GraduationDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Grade, OperationType.View))
+            {
+                /// TODO: Calculate the grade for storage.
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
+            {
+                info["ContributeIndividually"] = person.ContributeIndividually;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
+            {
+                info["PrintStatement"] = person.PrintStatement;
+            }
+            if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
+            {
+                info["Envelope"] = person.EnvelopeNumber;
+            }
+            if (person.MedicalInformation != "" && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
+            {
+                info["Medical"] = person.MedicalInformation;
             }
 
             return info;
@@ -125,21 +187,18 @@ namespace Arena.Custom.HDC.WebService
         /// personID. Only information that the user has permission
         /// to is retrieved.
         /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <param name="personID">The ID number of the person to get the contact information of.</param>
         /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
-        static public IDictionary GetPersonContactInformation(IDictionary credentials, int personID)
+        public IDictionary GetPersonContactInformation(int personID)
         {
-            Login loginUser;
             Person person;
             Hashtable contact = new Hashtable(), hash;
             ArrayList addressList, phoneList, emailList;
             int i;
 
             //
-            // Log the user in and find the person in question.
+            // Find the person in question.
             //
-            loginUser = LoginForCredentials(credentials);
             person = new Person(personID);
             contact["PersonID"] = person.PersonID;
 
@@ -149,7 +208,7 @@ namespace Arena.Custom.HDC.WebService
             //
             if (person.PersonID == -1)
             {
-                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
                 {
                     //
                     // Build all the addresses.
@@ -185,7 +244,7 @@ namespace Arena.Custom.HDC.WebService
                     contact["Addresses"] = addressList;
                 }
 
-                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
                 {
                     //
                     // Build all the phones.
@@ -208,7 +267,7 @@ namespace Arena.Custom.HDC.WebService
                     contact["Phones"] = phoneList;
                 }
 
-                if (PersonFieldOperationAllowed(loginUser.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
                 {
                     //
                     // Build all the emails.
@@ -238,12 +297,10 @@ namespace Arena.Custom.HDC.WebService
         /// are returned in the "ministry" key and serving profiles
         /// are returned in the "serving" key.
         /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <param name="personID">The person we are interested in loading profiles for.</param>
         /// <returns>Returns a dictionary of keys that point to integer arrays.</returns>
-        static public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
+        public IDictionary GetPersonProfiles(int personID)
         {
-            Login loginUser;
             Person person;
             ArrayList profileIDs;
             Hashtable hash;
@@ -251,44 +308,62 @@ namespace Arena.Custom.HDC.WebService
             int i;
 
             //
-            // Log the user in and find the person in question.
+            // Find the person in question.
             //
-            loginUser = LoginForCredentials(credentials);
             person = new Person(personID);
             hash = new Hashtable();
-
+            
             //
             // Load up the profiles for this person.
             //
             if (person.PersonID != -1)
             {
-                //
-                // Load all the ministry profiles for this person.
-                //
-                collection = new ProfileCollection();
-                collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Ministry, personID, true);
-                profileIDs = new ArrayList();
-                for (i = 0; i < collection.Count; i++)
+                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Ministry_Tags, OperationType.View) == true)
                 {
-                    profileIDs.Add(collection[i].ProfileID);
+                    //
+                    // Load all the ministry profiles for this person.
+                    //
+                    collection = new ProfileCollection();
+                    collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Ministry, personID, true);
+                    profileIDs = new ArrayList();
+                    for (i = 0; i < collection.Count; i++)
+                    {
+                        profileIDs.Add(collection[i].ProfileID);
+                    }
+                    hash["ministry"] = profileIDs.ToArray(typeof(int));
                 }
-                hash["ministry"] = profileIDs.ToArray(typeof(int));
 
-                //
-                // Load all the serving profiles for this person.
-                //
-                collection = new ProfileCollection();
-                collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Serving, personID, true);
-                profileIDs = new ArrayList();
-                for (i = 0; i < collection.Count; i++)
+                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Serving_Tags, OperationType.View) == true)
                 {
-                    profileIDs.Add(collection[i].ProfileID);
+                    //
+                    // Load all the serving profiles for this person.
+                    //
+                    collection = new ProfileCollection();
+                    collection.LoadMemberProfiles(DefaultOrganizationID(), ProfileType.Serving, personID, true);
+                    profileIDs = new ArrayList();
+                    for (i = 0; i < collection.Count; i++)
+                    {
+                        profileIDs.Add(collection[i].ProfileID);
+                    }
+                    hash["serving"] = profileIDs.ToArray(typeof(int));
                 }
-                hash["serving"] = profileIDs.ToArray(typeof(int));
             }
 
             return hash;
         }
+
+        public IDictionary GetProfileInformation(IDictionary credentials, int profileID) { return null; }
+        public int[] GetProfileChildren(int profileID) { return null; }
+        public int[] GetProfileRoots(int profileType) { return null; }
+        public int[] GetProfileMembers(int profileID) { return null; }
+        public int[] GetProfileOccurrences(int profileID) { return null; }
+
+        public int[] GetSmallGroupClusters(int clusterID) { return null; }
+        public IDictionary GetSmallGroupClusterDetails(int clusterID) { return null; }
+        public int[] GetSmallGroups(int clusterID) { return null; }
+        public IDictionary GetSmallGroupDetails(int groupID) { return null; }
+        public int[] GetSmallGroupMembers(int groupID) { return null; }
+        public int[] GetSmallGroupOccurrences(int groupID) { return null; }
 
         /// <summary>
         /// This method attempts to log the session in given the users
@@ -298,7 +373,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
         /// <returns>Login class for the authenticated user. Raises UnauthorizedAccessException on invalid login.</returns>
-        static private Login LoginForCredentials(IDictionary credentials)
+        private Login LoginForCredentials(IDictionary credentials)
         {
             Login loginUser;
 

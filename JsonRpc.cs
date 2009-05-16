@@ -17,7 +17,7 @@ namespace Arena.Custom.HDC.WebService
         [JsonRpcHelp("Return the version of the API in use by the server.")]
         public int Version()
         {
-            return Core.Version();
+            return CoreRpc.Version();
         }
 
 
@@ -25,7 +25,9 @@ namespace Arena.Custom.HDC.WebService
         [JsonRpcHelp("Retrieves an array of all person IDs that match the search criterea.")]
         public int[] FindPeople(IDictionary credentials, IDictionary query)
         {
-            return Core.FindPeople(credentials, query);
+            CoreRpc rpc = new CoreRpc(credentials);
+
+            return rpc.FindPeople(query);
         }
 
 
@@ -33,7 +35,9 @@ namespace Arena.Custom.HDC.WebService
         [JsonRpcHelp("Get the basic person information for the given person ID.")]
         public IDictionary GetPersonInformation(IDictionary credentials, int personID)
         {
-            return Core.GetPersonInformation(credentials, personID);
+            CoreRpc rpc = new CoreRpc(credentials);
+
+            return rpc.GetPersonInformation(personID);
         }
 
 
@@ -41,15 +45,19 @@ namespace Arena.Custom.HDC.WebService
         [JsonRpcHelp("Get the contact information for the given person ID.")]
         public IDictionary GetPersonContactInformation(IDictionary credentials, int personID)
         {
-            return Core.GetPersonContactInformation(credentials, personID);
+            CoreRpc rpc = new CoreRpc(credentials);
+
+            return rpc.GetPersonContactInformation(personID);
         }
 
         
         [JsonRpcMethod("GetPersonProfiles", Idempotent = true)]
         [JsonRpcHelp("Get the profile IDs that the member is a part of.")]
-        public int[] GetPersonProfiles(IDictionary credentials, int personID)
+        public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
         {
-            return Core.GetPersonProfiles(credentials, personID);
+            CoreRpc rpc = new CoreRpc(credentials);
+
+            return rpc.GetPersonProfiles(personID);
         }
     }
 }
