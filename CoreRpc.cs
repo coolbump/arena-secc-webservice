@@ -48,15 +48,15 @@ namespace Arena.Custom.HDC.WebService
 
         /// <summary>
         /// Returns the version of the Arena Web Service API protocol
-        /// supported by the server. Currently this is 1.
+        /// supported by the server. Currently this is 0.1.
         /// </summary>
         /// <returns>API Version</returns>
         static public RpcVersion Version()
         {
             RpcVersion version = new RpcVersion();
 
-            version.Major = 1;
-            version.Minor = 0;
+            version.Major = 0;
+            version.Minor = 1;
 
             return version;
         }
@@ -86,7 +86,7 @@ namespace Arena.Custom.HDC.WebService
         /// birthdate; name; phone; email; birthdate; area; profiles.
         /// </summary>
         /// <param name="query">Provides the filter to use when searching for people.</param>
-        /// <returns></returns>
+        /// <returns>Integer array containing Person ID numbers that match the query.</returns>
         public int[] FindPeople(RpcPeopleQuery query)
         {
             PersonCollection people;
@@ -452,12 +452,121 @@ namespace Arena.Custom.HDC.WebService
 
         #endregion
 
+        #region Methods for working with small group records.
+
+        /// <summary>
+        /// Retrieve a list of all group categories in the system. If, by chance,
+        /// no categories exist then an empty array is returned.
+        /// </summary>
+        /// <returns>Integer array of group categoryIDs.</returns>
+        public int[] GetSmallGroupCategories() { return null; }
+
+        /// <summary>
+        /// Retrieve the basic information about a small group category.
+        /// To find more detailed information about the group category you
+        /// can call the GetSmallGroupCategoryDetails method. If the given
+        /// category is not found then -1 is returned in the categoryID
+        /// member.
+        /// </summary>
+        /// <param name="categoryID">The category to find basic information about.</param>
+        /// <returns>Basic information about a group category.</returns>
+        public RpcSmallGroupCategoryInformation GetSmallGroupCategoryInformation(int categoryID) { return null; }
+
+        /// <summary>
+        /// Retrieve more detailed information about a small group category.
+        /// Only detailed information is returned, no basic information. If
+        /// the category is not found then -1 is returned in the categoryID
+        /// member.
+        /// </summary>
+        /// <param name="categoryID">The category to get details on.</param>
+        /// <returns>Detailed information about a group category.</returns>
+        public RpcSmallGroupCategoryDetails GetSmallGroupCategoryDetails(int categoryID) { return null; }
+
+        /// <summary>
+        /// Retrieve a list of all group clusters at the root level of the
+        /// group category. If no group clusters are contained in the category
+        /// then an empty array is returned.
+        /// </summary>
+        /// <param name="categoryID">The parent category to find all root clusters of.</param>
+        /// <returns>Integer array of clusterIDs.</returns>
+        public int[] GetSmallGroupRootClusters(int categoryID) { return null; }
+
+        /// <summary>
+        /// Retrieve a list of small group clusters that reside underneath
+        /// the parent cluster ID. If there are no group clusters beneath
+        /// the parent then an empty array is returned. If this happens the
+        /// client should make a call to GetSmallGroups to check for any
+        /// small groups under the cluster.
+        /// </summary>
+        /// <param name="clusterID">The parent clusterID to find clusters under.</param>
+        /// <returns>An integer array of group clusters.</returns>
         public int[] GetSmallGroupClusters(int clusterID) { return null; }
+
+        /// <summary>
+        /// Retrieve the basic information about a group cluster. More detailed
+        /// information can be retrieved via the GetSmallGroupClusterDetails. If
+        /// the group cluster is not found then -1 is returned in the clusterID
+        /// member.
+        /// </summary>
+        /// <param name="clusterID">The cluster to retrieve information about.</param>
+        /// <returns>Basic information about the group cluster.</returns>
+        public RpcSmallGroupClusterInformation GetSmallGroupClusterInformation(int clusterID) { return null; }
+
+        /// <summary>
+        /// Retrieve more detailed information about a group cluster. This
+        /// does not include basic information. If the group cluster is not
+        /// found then -1 is returned in the clusterID member.
+        /// </summary>
+        /// <param name="clusterID">The cluster to retrieve details about.</param>
+        /// <returns>Detailed information about the group cluster.</returns>
         public RpcSmallGroupClusterDetails GetSmallGroupClusterDetails(int clusterID) { return null; }
+
+        /// <summary>
+        /// Retrieve a list of small groups which reside under the parent group
+        /// cluster. If no small groups are found then an empty array is returned.
+        /// </summary>
+        /// <param name="clusterID">The parent cluster to find small groups under.</param>
+        /// <returns>An integer array of small groups under the parent cluster.</returns>
         public int[] GetSmallGroups(int clusterID) { return null; }
+
+        /// <summary>
+        /// Retrieves basic information about the small group. More detailed
+        /// information can be retrieved via the GetSmallGroupDetails method.
+        /// If the small group is not found then -1 is returned in the groupID
+        /// member.
+        /// </summary>
+        /// <param name="groupID">The small group to retrieve information about.</param>
+        /// <returns>Basic information about the small group.</returns>
+        public RpcSmallGroupInformation GetSmallGroupInformation(int groupID) { return null; }
+
+        /// <summary>
+        /// Rerieves more detailed information about the small group. Any information
+        /// that is returned in the basic information is not returned in the details.
+        /// If the small group is not found then -1 is returned in the groupID
+        /// member.
+        /// </summary>
+        /// <param name="groupID">The small group to retrieve details about.</param>
+        /// <returns>Detailed information about the small group.</returns>
         public RpcSmallGroupDetails GetSmallGroupDetails(int groupID) { return null; }
+
+        /// <summary>
+        /// Find all people who are members of the small group and return their
+        /// person IDs. All members are returned including in-active members. If the
+        /// small group has no members then an empty array is returned.
+        /// </summary>
+        /// <param name="groupID">The small group to find members of.</param>
+        /// <returns>Integer array of personIDs.</returns>
         public int[] GetSmallGroupMembers(int groupID) { return null; }
+
+        /// <summary>
+        /// Find all occurrences of the given small group. If the small group
+        /// currently has no occurrences then an empty array is returned.
+        /// </summary>
+        /// <param name="groupID">The small group whose occurrences we are interested in.</param>
+        /// <returns>Integer array of occurenceIDs.</returns>
         public int[] GetSmallGroupOccurrences(int groupID) { return null; }
+
+        #endregion
 
         /// <summary>
         /// This method attempts to log the session in given the users
@@ -477,7 +586,6 @@ namespace Arena.Custom.HDC.WebService
 
             return loginUser;
         }
-
 
         #region Private methods for validating security.
         /// <summary>
@@ -553,7 +661,6 @@ namespace Arena.Custom.HDC.WebService
             return false;
         }
         #endregion
-
 
         /// <summary>
         /// Retrieve the default organization ID for this web
@@ -1084,6 +1191,181 @@ namespace Arena.Custom.HDC.WebService
     }
 
     /// <summary>
+    /// Retrieve the basic information about a group category. This
+    /// structure follows the standard RPC retrieval and update rules.
+    /// </summary>
+    public struct RpcSmallGroupCategoryInformation
+    {
+        /// <summary>
+        /// The unique ID number that identifies this group category.
+        /// </summary>
+        public int CategoryID;
+
+        /// <summary>
+        /// The name of this group category.
+        /// </summary>
+        public string Name;
+
+        /// <summary>
+        /// Flag to indicate if this group category allows registrations.
+        /// I really don't remember what group registrations are for and
+        /// would love to update this documentation.
+        /// </summary>
+        public bool? AllowRegistrations;
+
+        /// <summary>
+        /// Flag to indicate if this category allows bulk update operations
+        /// to be performed on the members of any small groups of this type
+        /// of category. I think.
+        /// </summary>
+        public bool? AllowBulkUpdate;
+
+        /// <summary>
+        /// Wether or not the history of this category type is private. I
+        /// would assume this is a person's history in the group. I am
+        /// guessing, that this keeps the history private from fellow group
+        /// members but not the leader, but I may be wrong.
+        /// </summary>
+        public bool? HistoryIsPrivate;
+
+        /// <summary>
+        /// Wether membership in any small group of this category type should
+        /// count as small group membership. For example, a team group
+        /// probably does not count as a small group.
+        /// </summary>
+        public bool? CreditAsSmallGroup;
+
+        /// <summary>
+        /// Flag indicating if small groups of this category type should be
+        /// assigned to a specific area.
+        /// </summary>
+        public bool? UsesArea;
+
+        /// <summary>
+        /// Allow, Assign, or some such, uniform number. Generally this flag
+        /// would only be used if this group category has to do with teams.
+        /// </summary>
+        public bool? UseUniformNumber;
+
+        /// <summary>
+        /// The default role of new members in small groups of this type of
+        /// category.
+        /// </summary>
+        public RpcLookup DefaultRole;
+    }
+
+    /// <summary>
+    /// This structure provides more detailed information about a
+    /// small group category. It does not contain any information
+    /// from the RpcSmallGroupCategoryInformation structure.
+    /// </summary>
+    public struct RpcSmallGroupCategoryDetails
+    {
+        /// <summary>
+        /// The category ID that this detailed information applies
+        /// to.
+        /// </summary>
+        public int CategoryID;
+
+        /// <summary>
+        /// The caption to be used with the PrimaryAge member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string AgeGroupCaption;
+
+        /// <summary>
+        /// The caption to be used with the Description member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string DescriptionCaption;
+
+        /// <summary>
+        /// The caption to be used with the LeaderID member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string LeaderCaption;
+
+        /// <summary>
+        /// The caption to be used with the TargetLocationID member
+        /// of the RpcSmallGroupDetails structure.
+        /// </summary>
+        public string LocationTargetCaption;
+
+        /// <summary>
+        /// The caption to be used with the PrimaryMaritalStatus member
+        /// of the RpcSmallGroupDetails structure.
+        /// </summary>
+        public string MaritalPreferenceCaption;
+
+        /// <summary>
+        /// The caption to be used with the MaximumMembers member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string MaximumMembersCaption;
+
+        /// <summary>
+        /// The caption to be used with the MeetingDay member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string MeetingDayCaption;
+
+        /// <summary>
+        /// The caption to be used with the Name member of the
+        /// RpcSmallGroupInformation structure.
+        /// </summary>
+        public string NameCaption;
+
+        /// <summary>
+        /// The caption to be used with the Notes member of the
+        /// RpcSmallGroupInformation structure.
+        /// </summary>
+        public string NotesCaption;
+
+        /// <summary>
+        /// The caption to be used with the ParentID member of the
+        /// RpcSmallGroupInformation structure.
+        /// </summary>
+        public string ParentCaption;
+
+        /// <summary>
+        /// The caption to be used with the PictureUrl member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string PictureCaption;
+
+        /// <summary>
+        /// The caption to be used with the Schedule member of the
+        /// RpcSmallGroupInformation structure.
+        /// </summary>
+        public string ScheduleCaption;
+
+        /// <summary>
+        /// The caption to be used with the Topic member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string TopicCaption;
+
+        /// <summary>
+        /// The caption to be used with the TypeID member of the
+        /// RpcSmallGroupInformation structure.
+        /// </summary>
+        public string TypeCaption;
+
+        /// <summary>
+        /// The caption to be used with the Url member of the
+        /// RpcSmallGroupDetails structure.
+        /// </summary>
+        public string UrlCaption;
+
+        /// <summary>
+        /// An array of RpcLookups which list the valid roles members
+        /// are allowed to take on for small groups of this category
+        /// type.
+        /// </summary>
+        public RpcLookup[] ValidRoles;
+    }
+
+    /// <summary>
     /// Contains the basic information about a group cluster. This
     /// structure follows the standard RPC retrieval and update
     /// rules.
@@ -1099,6 +1381,11 @@ namespace Arena.Custom.HDC.WebService
         /// The parent cluster ID of this cluster.
         /// </summary>
         public int? ParentID;
+
+        /// <summary>
+        /// The group category ID of this cluster.
+        /// </summary>
+        public int? CategoryID;
 
         /// <summary>
         /// The name of this cluster.
@@ -1233,10 +1520,14 @@ namespace Arena.Custom.HDC.WebService
         public int GroupID;
 
         /// <summary>
-        /// The ID number of the parent group, or I believe rather
-        /// the parent group cluster, of this small group.
+        /// The ID number of the parent cluster of this small group.
         /// </summary>
-        public int? ParentID;
+        public int? ClusterID;
+
+        /// <summary>
+        /// The group category ID of this small group.
+        /// </summary>
+        public int? CategoryID;
 
         /// <summary>
         /// The name of this small group.
@@ -1257,7 +1548,7 @@ namespace Arena.Custom.HDC.WebService
 
         /// <summary>
         /// The TypeID of this small group.
-        /// TODO: What is this?
+        /// TODO: What is this? Is this the CategoryID or a lookup?
         /// </summary>
         public int? TypeID;
 
@@ -1349,10 +1640,10 @@ namespace Arena.Custom.HDC.WebService
         public string NavigationUrl;
 
         /// <summary>
-        /// The URL that can be used to retrieve the image for
+        /// The URL that can be used to retrieve the picture for
         /// this small group, if there is one.
         /// </summary>
-        public string ImageUrl;
+        public string PictureUrl;
 
         /// <summary>
         /// The average age of the members of this small group.
