@@ -4,6 +4,8 @@ using System.Collections;
 using System.Web;
 using System.Web.SessionState;
 using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 using Jayrock.Json;
 using Jayrock.JsonRpc;
 using Jayrock.JsonRpc.Web;
@@ -21,12 +23,14 @@ namespace Arena.Custom.HDC.WebService
             return (IDictionary)JsonConverter.EncodeObject(CoreRpc.Version());
         }
 
+
         [JsonRpcMethod("IsClientVersionSupported", Idempotent = false)]
         [JsonRpcHelp("Returns a true/false indication of wether or not the given client version is safe to use.")]
         public bool IsClientVersionSupported(int major, int minor)
         {
             return CoreRpc.IsClientVersionSupported(major, minor);
         }
+
 
         [JsonRpcMethod("FindPeople", Idempotent = true)]
         [JsonRpcHelp("Retrieves an array of all person IDs that match the search criterea.")]
@@ -43,8 +47,18 @@ namespace Arena.Custom.HDC.WebService
         public IDictionary GetPersonInformation(IDictionary credentials, int personID)
         {
             CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
-            
+
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonInformation(personID));
+        }
+
+
+        [JsonRpcMethod("GetPersonDetails", Idempotent = true)]
+        [JsonRpcHelp("Get the basic person detailed information for the given person ID.")]
+        public IDictionary GetPersonDetails(IDictionary credentials, int personID)
+        {
+            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+
+            return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonDetails(personID));
         }
 
 
@@ -57,7 +71,7 @@ namespace Arena.Custom.HDC.WebService
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonContactInformation(personID));
         }
 
-        
+
         [JsonRpcMethod("GetPersonProfiles", Idempotent = true)]
         [JsonRpcHelp("Get the profile IDs that the member is a part of.")]
         public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
@@ -156,6 +170,19 @@ namespace Arena.Custom.HDC.WebService
             }
 
             //
+            // Check for a DateTime class.
+            //
+            if (value is DateTime)
+            {
+                StringBuilder str = new StringBuilder();
+                DateTime date = (DateTime)value;
+
+                str.AppendFormat("{0:s}Z", date.ToUniversalTime());
+
+                return str.ToString();
+            }
+
+            //
             // Check for a class or struct
             //
             if (valueType.IsClass || valueType.IsValueType)
@@ -211,6 +238,17 @@ namespace Arena.Custom.HDC.WebService
             if (valueType.GetMethod("GetValueOrDefault", typeArray) != null)
             {
                 valueType = Nullable.GetUnderlyingType(valueType);
+            }
+
+            //
+            // Check for a datetime.
+            //
+            if (valueType == typeof(String) && ((string)value).Length == 20)
+            {
+                Regex expression = new Regex("/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})Z$/");
+
+                if (expression.IsMatch((string)value))
+                    return DateTime.Parse("s");
             }
 
             //

@@ -2,6 +2,8 @@
 using System;
 using System.Configuration;
 using System.Collections;
+using System.Web;
+using System.Text;
 using Arena.Portal;
 using Arena.Core;
 using Arena.Security;
@@ -121,101 +123,172 @@ namespace Arena.Custom.HDC.WebService
         /// <returns>Dictionary containing personal information or PersonID key = -1 when not found.</returns>
         public RpcPersonInformation GetPersonInformation(int personID)
         {
+            RpcPersonInformation info;
             Person person;
-            Hashtable info = new Hashtable();
 
             //
             // Find the person in question.
             //
             person = new Person(personID);
+            info = new RpcPersonInformation();
 
             //
             // Build the basic information, we default to all the values
             // that might not be set. If personID is -1 (not found) then
             // we don't need to continue.
             //
-            info["PersonID"] = person.PersonID;
+            info.PersonID = person.PersonID;
             if (person.PersonID == -1)
                 return info;
 
             //
             // Retrieve all the fields the user has access to.
             //
-            if (person.MemberStatus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Member_Status, OperationType.View))
+            if (person.MemberStatus.LookupID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Member_Status, OperationType.View))
             {
-                info["MemberStatus"] = person.MemberStatus.Value;
+                info.MemberStatus = new RpcLookup(person.MemberStatus);
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
             {
-                info["RecordStatus"] = person.RecordStatus;
+                info.RecordStatus = person.RecordStatus.ToString();
             }
             if (person.Campus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Campus, OperationType.View))
             {
-                info["Campus"] = person.Campus.CampusId;
+                info.CampusID = person.Campus.CampusId;
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Staff_Member, OperationType.View))
             {
-                info["Staff"] = person.StaffMember;
+                info.Staff = person.StaffMember;
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Name, OperationType.View))
             {
-                info["FirstName"] = person.FirstName;
-                info["LastName"] = person.LastName;
+                info.FirstName = person.FirstName;
+                info.LastName = person.LastName;
                 if (person.MiddleName != "")
                 {
-                    info["MiddleName"] = person.MiddleName;
+                    info.MiddleName = person.MiddleName;
                 }
                 if (person.NickName != "")
                 {
-                    info["NickName"] = person.NickName;
+                    info.NickName = person.NickName;
+                }
+                if (person.Title.LookupID != -1)
+                {
+                    info.Title = new RpcLookup(person.Title);
+                }
+                if (person.Suffix.LookupID != -1)
+                {
+                    info.Suffix = new RpcLookup(person.Suffix);
                 }
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Family_Information, OperationType.View))
             {
-                info["FamilyID"] = person.FamilyId;
+                info.FamilyID = person.FamilyId;
             }
             if (person.BirthDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
             {
-                info["BirthDate"] = person.BirthDate;
+                info.BirthDate = person.BirthDate;
             }
             if (person.Age != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Age, OperationType.View))
             {
-                info["Age"] = person.Age;
+                info.Age = person.Age;
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Gender, OperationType.View))
             {
-                info["Gender"] = person.Gender;
-            }
-            if (person.MaritalStatus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
-            {
-                info["MaritalStatus"] = person.MaritalStatus.Value;
-            }
-            if (person.AnniversaryDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
-            {
-                info["Anniversary"] = person.AnniversaryDate;
+                info.Gender = person.Gender.ToString();
             }
             if (person.GraduationDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Grade, OperationType.View))
             {
-                /// TODO: Calculate the grade for storage.
-            }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
-            {
-                info["ContributeIndividually"] = person.ContributeIndividually;
-            }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
-            {
-                info["PrintStatement"] = person.PrintStatement;
-            }
-            if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
-            {
-                info["Envelope"] = person.EnvelopeNumber;
-            }
-            if (person.MedicalInformation != "" && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
-            {
-                info["Medical"] = person.MedicalInformation;
+                info.Grade = Person.CalculateGradeLevel(person.GraduationDate, Convert.ToDateTime(new Organization.OrganizationSetting(DefaultOrganizationID(), "GradePromotionDate").Value));
             }
 
             return info;
+        }
+
+        /// <summary>
+        /// Retrieves detailed information about the given personID. The
+        /// RpcPersonDetails structure is filled as much as allowed by the
+        /// users security level.
+        /// </summary>
+        /// <param name="personID">The ID number of the person to get the detailed information of.</param>
+        /// <returns>Person's detailed information or PersonID member = -1 when not found.</returns>
+        public RpcPersonDetails GetPersonDetails(int personID)
+        {
+            RpcPersonDetails details;
+            Person person;
+
+            //
+            // Find the person in question.
+            //
+            person = new Person(personID);
+            details = new RpcPersonDetails();
+
+            //
+            // Build the basic information. If personID is -1 (not found) then
+            // we don't need to continue.
+            //
+            details.PersonID = person.PersonID;
+            if (person.PersonID == -1)
+                return details;
+
+            //
+            // Add in the fields everybody can see.
+            //
+            details.CreatedBy = person.CreatedBy;
+            details.Modifiedby = person.ModifiedBy;
+            details.DateCreated = person.DateCreated;
+            details.DateModified = person.DateModified;
+            details.NagivationUrl = person.NavigationUrl;
+
+            //
+            // Retrieve all the fields the user has access to.
+            //
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Activity_Level, OperationType.View))
+            {
+                details.ActiveMeter = person.ActiveMeter;
+            }
+            if (person.AnniversaryDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
+            {
+                details.Anniversary = person.AnniversaryDate;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
+            {
+                details.ContributeIndividually = person.ContributeIndividually;
+            }
+            if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
+            {
+                details.EnvelopeNumber = person.EnvelopeNumber;
+            }
+            if (person.Blob != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.View))
+            {
+                details.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + person.Blob.GUID;
+            }
+            if (person.InactiveReason.LookupID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
+            {
+                details.InactiveReason = new RpcLookup(person.InactiveReason);
+            }
+            if (person.LastAttended.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
+            {
+                details.LastAttended = person.LastAttended;
+            }
+            if (person.DateLastVerified.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
+            {
+                details.LastVerified = person.DateLastVerified;
+            }
+            if (person.MedicalInformation != "" && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
+            {
+                details.MedicalInformation = person.MedicalInformation;
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
+            {
+                details.PrintStatement = person.PrintStatement;
+            }
+            if (person.Spouse() != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
+            {
+                details.SpouseID = person.Spouse().PersonID;
+            }
+
+            return details;
         }
 
         /// <summary>
@@ -409,7 +482,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The ID number of the profile to look up.</param>
         /// <returns>Basic profile information.</returns>
-        public RpcProfileInformation GetProfileInformation(int profileID) { return null; }
+        public RpcProfileInformation? GetProfileInformation(int profileID) { return null; }
 
         /// <summary>
         /// Retrieve detailed information about a profile. If the profile is
@@ -418,7 +491,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The ID number of the profile to look up.</param>
         /// <returns>Detailed profile information.</returns>
-        public RpcProfileDetails GetProfileDetails(int profileID) { return null; }
+        public RpcProfileDetails? GetProfileDetails(int profileID) { return null; }
 
         /// <summary>
         /// Retrieve all the ID numbers of the profiles directly beneath
@@ -470,7 +543,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The category to find basic information about.</param>
         /// <returns>Basic information about a group category.</returns>
-        public RpcSmallGroupCategoryInformation GetSmallGroupCategoryInformation(int categoryID) { return null; }
+        public RpcSmallGroupCategoryInformation? GetSmallGroupCategoryInformation(int categoryID) { return null; }
 
         /// <summary>
         /// Retrieve more detailed information about a small group category.
@@ -480,7 +553,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The category to get details on.</param>
         /// <returns>Detailed information about a group category.</returns>
-        public RpcSmallGroupCategoryDetails GetSmallGroupCategoryDetails(int categoryID) { return null; }
+        public RpcSmallGroupCategoryDetails? GetSmallGroupCategoryDetails(int categoryID) { return null; }
 
         /// <summary>
         /// Retrieve a list of all group clusters at the root level of the
@@ -510,7 +583,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The cluster to retrieve information about.</param>
         /// <returns>Basic information about the group cluster.</returns>
-        public RpcSmallGroupClusterInformation GetSmallGroupClusterInformation(int clusterID) { return null; }
+        public RpcSmallGroupClusterInformation? GetSmallGroupClusterInformation(int clusterID) { return null; }
 
         /// <summary>
         /// Retrieve more detailed information about a group cluster. This
@@ -519,7 +592,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The cluster to retrieve details about.</param>
         /// <returns>Detailed information about the group cluster.</returns>
-        public RpcSmallGroupClusterDetails GetSmallGroupClusterDetails(int clusterID) { return null; }
+        public RpcSmallGroupClusterDetails? GetSmallGroupClusterDetails(int clusterID) { return null; }
 
         /// <summary>
         /// Retrieve a list of small groups which reside under the parent group
@@ -537,7 +610,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="groupID">The small group to retrieve information about.</param>
         /// <returns>Basic information about the small group.</returns>
-        public RpcSmallGroupInformation GetSmallGroupInformation(int groupID) { return null; }
+        public RpcSmallGroupInformation? GetSmallGroupInformation(int groupID) { return null; }
 
         /// <summary>
         /// Rerieves more detailed information about the small group. Any information
@@ -547,7 +620,7 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="groupID">The small group to retrieve details about.</param>
         /// <returns>Detailed information about the small group.</returns>
-        public RpcSmallGroupDetails GetSmallGroupDetails(int groupID) { return null; }
+        public RpcSmallGroupDetails? GetSmallGroupDetails(int groupID) { return null; }
 
         /// <summary>
         /// Find all people who are members of the small group and return their
@@ -671,6 +744,29 @@ namespace Arena.Custom.HDC.WebService
         static public int DefaultOrganizationID()
         {
             return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
+        }
+
+        /// <summary>
+        /// Retrieve the base url (the portion of the URL without the last path
+        /// component, that is the filename and query string) of the current
+        /// web request.
+        /// </summary>
+        /// <returns>Base url as a string.</returns>
+        static public string BaseUrl()
+        {
+            StringBuilder url = new StringBuilder();
+            string[] segments;
+            int i;
+
+
+            url.Append(HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority));
+            segments = HttpContext.Current.Request.Url.Segments;
+            for (i = 0; i < segments.Length - 1; i++)
+            {
+                url.Append(segments[i]);
+            }
+
+            return url.ToString();
         }
     }
 
@@ -986,11 +1082,11 @@ namespace Arena.Custom.HDC.WebService
     {
         public string FirstName;
         public string LastName;
-        public DateTime BirthDate;
+        public DateTime? BirthDate;
         public string Phone;
         public string Email;
-        public int AreaID;
-        public bool Staff;
+        public int? AreaID;
+        public bool? Staff;
     }
 
     /// <summary>
@@ -1027,12 +1123,12 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The title of the person (Mr., Mrs., etc.)
         /// </summary>
-        public string Title;
+        public RpcLookup? Title;
 
         /// <summary>
         /// The suffix of the person (II, III, Jr., etc.)
         /// </summary>
-        public string Suffix;
+        public RpcLookup? Suffix;
 
         /// <summary>
         /// The record status, Pending, Active, etc.
@@ -1042,7 +1138,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The member status.
         /// </summary>
-        public RpcLookup MemberStatus;
+        public RpcLookup? MemberStatus;
 
         /// <summary>
         /// The ID number of the campus this person is considered to
@@ -1063,7 +1159,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The person's date of birth.
         /// </summary>
-        public DateTime BirthDate;
+        public DateTime? BirthDate;
 
         /// <summary>
         /// The persons age if available.
@@ -1099,7 +1195,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The state of the person, married, single, etc.
         /// </summary>
-        public RpcLookup MaritalStatus;
+        public RpcLookup? MaritalStatus;
 
         /// <summary>
         /// If the person is married this contains the ID number of
@@ -1111,7 +1207,7 @@ namespace Arena.Custom.HDC.WebService
         /// The anniversary date of this person, it is possible for
         /// this field to be set even if the person is not "married".
         /// </summary>
-        public DateTime Anniversary;
+        public DateTime? Anniversary;
 
         /// <summary>
         /// Flag specifying if this person contributes individually
@@ -1148,7 +1244,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date this person record was created.
         /// </summary>
-        public DateTime DateCreated;
+        public DateTime? DateCreated;
 
         /// <summary>
         /// The name of the person who last modified this person
@@ -1159,24 +1255,24 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date this person record was last modified.
         /// </summary>
-        public DateTime DateModified;
+        public DateTime? DateModified;
 
         /// <summary>
         /// The date this person record was last verified.
         /// </summary>
-        public DateTime LastVerified;
+        public DateTime? LastVerified;
 
         /// <summary>
         /// The reason this person's record has been marked as
         /// inactive, assuming it is marked inactive.
         /// </summary>
-        public string InactiveReason;
+        public RpcLookup? InactiveReason;
 
         /// <summary>
         /// The date this person last attended some activity at
         /// the church.
         /// </summary>
-        public DateTime LastAttended;
+        public DateTime? LastAttended;
 
         /// <summary>
         /// The URL to be used if this person is to be viewed
@@ -1703,6 +1799,18 @@ namespace Arena.Custom.HDC.WebService
     /// </summary>
     public struct RpcLookup
     {
+        /// <summary>
+        /// Create an instance of the RpcLookup structure by taking the
+        /// needed information from the Arena Lookup class.
+        /// </summary>
+        /// <param name="lookup">The Arena Lookup class to pull data from.</param>
+        public RpcLookup(Lookup lookup)
+        {
+            this.LookupID = lookup.LookupID;
+            this.TypeID = lookup.LookupTypeID;
+            this.Value = lookup.Value;
+        }
+
         /// <summary>
         /// The unique ID number of this lookup value.
         /// </summary>
