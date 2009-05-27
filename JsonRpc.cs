@@ -38,7 +38,7 @@ namespace Arena.Custom.HDC.WebService
         {
             CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
 
-            return rpc.FindPeople((RpcPeopleQuery)JsonConverter.EncodeObject(query));
+            return rpc.FindPeople((RpcPeopleQuery)JsonConverter.DecodeObject(query, typeof(RpcPeopleQuery)));
         }
 
 
