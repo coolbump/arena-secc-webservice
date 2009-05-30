@@ -115,8 +115,8 @@ namespace Arena.Custom.HDC.WebService
         }
 
         /// <summary>
-        /// Retrieves basic information about the given personID. The
-        /// PersonInfo structure is filled as much as allowed by the
+        /// Retrieves information about the given personID. The
+        /// RpcPersonInformation structure is filled as much as allowed by the
         /// users security level.
         /// </summary>
         /// <param name="personID">The ID number of the person to get the basic personal information of.</param>
@@ -140,6 +140,15 @@ namespace Arena.Custom.HDC.WebService
             info.PersonID = person.PersonID;
             if (person.PersonID == -1)
                 return info;
+
+            //
+            // Add in the fields everybody can see.
+            //
+            info.CreatedBy = person.CreatedBy;
+            info.Modifiedby = person.ModifiedBy;
+            info.DateCreated = person.DateCreated;
+            info.DateModified = person.DateModified;
+            info.NagivationUrl = person.NavigationUrl;
 
             //
             // Retrieve all the fields the user has access to.
@@ -201,96 +210,53 @@ namespace Arena.Custom.HDC.WebService
             {
                 info.Grade = Person.CalculateGradeLevel(person.GraduationDate, Convert.ToDateTime(new Organization.OrganizationSetting(DefaultOrganizationID(), "GradePromotionDate").Value));
             }
-
-            return info;
-        }
-
-        /// <summary>
-        /// Retrieves detailed information about the given personID. The
-        /// RpcPersonDetails structure is filled as much as allowed by the
-        /// users security level.
-        /// </summary>
-        /// <param name="personID">The ID number of the person to get the detailed information of.</param>
-        /// <returns>Person's detailed information or PersonID member = -1 when not found.</returns>
-        public RpcPersonDetails GetPersonDetails(int personID)
-        {
-            RpcPersonDetails details;
-            Person person;
-
-            //
-            // Find the person in question.
-            //
-            person = new Person(personID);
-            details = new RpcPersonDetails();
-
-            //
-            // Build the basic information. If personID is -1 (not found) then
-            // we don't need to continue.
-            //
-            details.PersonID = person.PersonID;
-            if (person.PersonID == -1)
-                return details;
-
-            //
-            // Add in the fields everybody can see.
-            //
-            details.CreatedBy = person.CreatedBy;
-            details.Modifiedby = person.ModifiedBy;
-            details.DateCreated = person.DateCreated;
-            details.DateModified = person.DateModified;
-            details.NagivationUrl = person.NavigationUrl;
-
-            //
-            // Retrieve all the fields the user has access to.
-            //
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Activity_Level, OperationType.View))
             {
-                details.ActiveMeter = person.ActiveMeter;
+                info.ActiveMeter = person.ActiveMeter;
             }
             if (person.AnniversaryDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
             {
-                details.Anniversary = person.AnniversaryDate;
+                info.Anniversary = person.AnniversaryDate;
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
             {
-                details.ContributeIndividually = person.ContributeIndividually;
+                info.ContributeIndividually = person.ContributeIndividually;
             }
             if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
             {
-                details.EnvelopeNumber = person.EnvelopeNumber;
+                info.EnvelopeNumber = person.EnvelopeNumber;
             }
-            if (person.Blob != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.View))
+            if (person.Blob.BlobID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.View))
             {
-                details.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + person.Blob.GUID;
+                info.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + person.Blob.GUID;
             }
             if (person.InactiveReason.LookupID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
             {
-                details.InactiveReason = new RpcLookup(person.InactiveReason);
+                info.InactiveReason = new RpcLookup(person.InactiveReason);
             }
             if (person.LastAttended.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
             {
-                details.LastAttended = person.LastAttended;
+                info.LastAttended = person.LastAttended;
             }
             if (person.DateLastVerified.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
             {
-                details.LastVerified = person.DateLastVerified;
+                info.LastVerified = person.DateLastVerified;
             }
             if (person.MedicalInformation != "" && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
             {
-                details.MedicalInformation = person.MedicalInformation;
+                info.MedicalInformation = person.MedicalInformation;
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
             {
-                details.PrintStatement = person.PrintStatement;
+                info.PrintStatement = person.PrintStatement;
             }
             if (person.Spouse() != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
             {
-                details.SpouseID = person.Spouse().PersonID;
+                info.SpouseID = person.Spouse().PersonID;
             }
 
-            return details;
+            return info;
         }
-
         /// <summary>
         /// Retrieves the contact information associated with the
         /// personID. Only information that the user has permission
@@ -476,7 +442,7 @@ namespace Arena.Custom.HDC.WebService
         #region Methods for working with profile records.
 
         /// <summary>
-        /// Retrieve the basic information about a profile. If the profile
+        /// Retrieve the information about a profile. If the profile
         /// is not found, or no access is permitted to the profile, then
         /// -1 is returned in the ProfileID member.
         /// </summary>
@@ -520,68 +486,23 @@ namespace Arena.Custom.HDC.WebService
                 {
                     info.ParentID = profile.ParentProfileID;
                 }
+                info.ActiveCount = profile.ActiveMembers;
+                info.CriticalCount = profile.CriticalMembers;
+                info.NavigationUrl = profile.NavigationUrl;
+                info.NoContactCount = profile.NoContactMembers;
+                info.OwnerID = profile.Owner.PersonID;
+                info.OwnerRelationshipStrength = profile.OwnerRelationshipStrength;
+                info.PeerRelationshipStrength = profile.PeerRelationshipStrength;
+                info.PendingCount = profile.PendingMembers;
+                info.ReviewCount = profile.InReviewMembers;
+                info.TotalCount = profile.TotalMembers;
+                info.CreatedBy = profile.CreatedBy;
+                info.DateCreated = profile.DateCreated;
+                info.DateModified = profile.DateModified;
+                info.ModifiedBy = profile.ModifiedBy;
             }
 
             return info;
-        }
-
-        /// <summary>
-        /// Retrieve detailed information about a profile. If the profile is
-        /// not found, or no access is permitted to the profile, then -1 is
-        /// returned in the ProfileID member.
-        /// </summary>
-        /// <param name="profileID">The ID number of the profile to look up.</param>
-        /// <returns>Detailed profile information.</returns>
-        public RpcProfileDetails GetProfileDetails(int profileID)
-        {
-            Profile profile;
-            RpcProfileDetails details;
-
-
-            //
-            // Load up the profile and check to see if it was found or not.
-            //
-            profile = new Profile(profileID);
-            details = new RpcProfileDetails();
-            details.ProfileID = profile.ProfileID;
-            if (details.ProfileID == -1)
-                return details;
-
-            //
-            // Check if the user has access to view information about the
-            // profile.
-            //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
-            {
-                details.ActiveCount = profile.ActiveMembers;
-                details.CriticalCount = profile.CriticalMembers;
-                details.NavigationUrl = profile.NavigationUrl;
-                details.NoContactCount = profile.NoContactMembers;
-                details.OwnerID = profile.Owner.PersonID;
-                details.OwnerRelationshipStrength = profile.OwnerRelationshipStrength;
-                details.PeerRelationshipStrength = profile.PeerRelationshipStrength;
-                details.PendingCount = profile.PendingMembers;
-                details.ReviewCount = profile.InReviewMembers;
-                details.TotalCount = profile.TotalMembers;
-                if (profile.CreatedBy != "")
-                {
-                    details.CreatedBy = profile.CreatedBy;
-                }
-                if (profile.DateCreated.Year != 1900)
-                {
-                    details.DateCreated = profile.DateCreated;
-                }
-                if (profile.DateModified.Year != 1900)
-                {
-                    details.DateModified = profile.DateModified;
-                }
-                if (profile.ModifiedBy != "")
-                {
-                    details.ModifiedBy = profile.ModifiedBy;
-                }
-            }
-
-            return details;
         }
 
         /// <summary>
@@ -727,25 +648,13 @@ namespace Arena.Custom.HDC.WebService
         public int[] GetSmallGroupCategories() { return null; }
 
         /// <summary>
-        /// Retrieve the basic information about a small group category.
-        /// To find more detailed information about the group category you
-        /// can call the GetSmallGroupCategoryDetails method. If the given
-        /// category is not found then -1 is returned in the categoryID
-        /// member.
+        /// Retrieve the information about a small group category.
+        /// If the given category is not found then -1 is returned in the
+        /// categoryID member.
         /// </summary>
-        /// <param name="categoryID">The category to find basic information about.</param>
+        /// <param name="categoryID">The category to find information about.</param>
         /// <returns>Basic information about a group category.</returns>
         public RpcSmallGroupCategoryInformation? GetSmallGroupCategoryInformation(int categoryID) { return null; }
-
-        /// <summary>
-        /// Retrieve more detailed information about a small group category.
-        /// Only detailed information is returned, no basic information. If
-        /// the category is not found then -1 is returned in the categoryID
-        /// member.
-        /// </summary>
-        /// <param name="categoryID">The category to get details on.</param>
-        /// <returns>Detailed information about a group category.</returns>
-        public RpcSmallGroupCategoryDetails? GetSmallGroupCategoryDetails(int categoryID) { return null; }
 
         /// <summary>
         /// Retrieve a list of all group clusters at the root level of the
@@ -768,23 +677,12 @@ namespace Arena.Custom.HDC.WebService
         public int[] GetSmallGroupClusters(int clusterID) { return null; }
 
         /// <summary>
-        /// Retrieve the basic information about a group cluster. More detailed
-        /// information can be retrieved via the GetSmallGroupClusterDetails. If
-        /// the group cluster is not found then -1 is returned in the clusterID
-        /// member.
+        /// Retrieve the information about a group cluster. If the group
+        /// cluster is not found then -1 is returned in the clusterID member.
         /// </summary>
         /// <param name="clusterID">The cluster to retrieve information about.</param>
         /// <returns>Basic information about the group cluster.</returns>
         public RpcSmallGroupClusterInformation? GetSmallGroupClusterInformation(int clusterID) { return null; }
-
-        /// <summary>
-        /// Retrieve more detailed information about a group cluster. This
-        /// does not include basic information. If the group cluster is not
-        /// found then -1 is returned in the clusterID member.
-        /// </summary>
-        /// <param name="clusterID">The cluster to retrieve details about.</param>
-        /// <returns>Detailed information about the group cluster.</returns>
-        public RpcSmallGroupClusterDetails? GetSmallGroupClusterDetails(int clusterID) { return null; }
 
         /// <summary>
         /// Retrieve a list of small groups which reside under the parent group
@@ -795,24 +693,12 @@ namespace Arena.Custom.HDC.WebService
         public int[] GetSmallGroups(int clusterID) { return null; }
 
         /// <summary>
-        /// Retrieves basic information about the small group. More detailed
-        /// information can be retrieved via the GetSmallGroupDetails method.
-        /// If the small group is not found then -1 is returned in the groupID
-        /// member.
+        /// Retrieves information about the small group. If the small
+        /// group is not found then -1 is returned in the groupID member.
         /// </summary>
         /// <param name="groupID">The small group to retrieve information about.</param>
         /// <returns>Basic information about the small group.</returns>
         public RpcSmallGroupInformation? GetSmallGroupInformation(int groupID) { return null; }
-
-        /// <summary>
-        /// Rerieves more detailed information about the small group. Any information
-        /// that is returned in the basic information is not returned in the details.
-        /// If the small group is not found then -1 is returned in the groupID
-        /// member.
-        /// </summary>
-        /// <param name="groupID">The small group to retrieve details about.</param>
-        /// <returns>Detailed information about the small group.</returns>
-        public RpcSmallGroupDetails? GetSmallGroupDetails(int groupID) { return null; }
 
         /// <summary>
         /// Find all people who are members of the small group and return their
@@ -1175,19 +1061,6 @@ namespace Arena.Custom.HDC.WebService
         /// User entered notes about this profile.
         /// </summary>
         public string Notes;
-    }
-
-    /// <summary>
-    /// This structure contains the details about a profile, not including
-    /// those already specified in RpcProfileInformation. This structure
-    /// follows the standard RPC retrieval and updating rules.
-    /// </summary>
-    public struct RpcProfileDetails
-    {
-        /// <summary>
-        /// The profile ID this detail record is referencing.
-        /// </summary>
-        public int ProfileID;
 
         /// <summary>
         /// The personID that owns this profile.
@@ -1203,7 +1076,7 @@ namespace Arena.Custom.HDC.WebService
         /// The date and time this profile as initially created.
         /// </summary>
         public DateTime DateCreated;
-        
+
         /// <summary>
         /// The person login who last modified this profile.
         /// </summary>
@@ -1371,22 +1244,6 @@ namespace Arena.Custom.HDC.WebService
         /// The gender of this person as a string representation.
         /// </summary>
         public string Gender;
-    }
-
-    /// <summary>
-    /// This structure provides more detailed information about a
-    /// person in the database. This is generally information that
-    /// is used less often and thus a waste of bandwidth to send
-    /// it everytime. This structure follows the standard RPC
-    /// retrieval and update rules.
-    /// </summary>
-    public struct RpcPersonDetails
-    {
-        /// <summary>
-        /// The ID number of the person this detail information refers
-        /// to.
-        /// </summary>
-        public int PersonID;
 
         /// <summary>
         /// The state of the person, married, single, etc.
@@ -1544,60 +1401,46 @@ namespace Arena.Custom.HDC.WebService
         /// category.
         /// </summary>
         public RpcLookup DefaultRole;
-    }
-
-    /// <summary>
-    /// This structure provides more detailed information about a
-    /// small group category. It does not contain any information
-    /// from the RpcSmallGroupCategoryInformation structure.
-    /// </summary>
-    public struct RpcSmallGroupCategoryDetails
-    {
-        /// <summary>
-        /// The category ID that this detailed information applies
-        /// to.
-        /// </summary>
-        public int CategoryID;
 
         /// <summary>
         /// The caption to be used with the PrimaryAge member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string AgeGroupCaption;
 
         /// <summary>
         /// The caption to be used with the Description member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string DescriptionCaption;
 
         /// <summary>
         /// The caption to be used with the LeaderID member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string LeaderCaption;
 
         /// <summary>
         /// The caption to be used with the TargetLocationID member
-        /// of the RpcSmallGroupDetails structure.
+        /// of the RpcSmallGroupInformation structure.
         /// </summary>
         public string LocationTargetCaption;
 
         /// <summary>
         /// The caption to be used with the PrimaryMaritalStatus member
-        /// of the RpcSmallGroupDetails structure.
+        /// of the RpcSmallGroupInformation structure.
         /// </summary>
         public string MaritalPreferenceCaption;
 
         /// <summary>
         /// The caption to be used with the MaximumMembers member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string MaximumMembersCaption;
 
         /// <summary>
         /// The caption to be used with the MeetingDay member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string MeetingDayCaption;
 
@@ -1621,7 +1464,7 @@ namespace Arena.Custom.HDC.WebService
 
         /// <summary>
         /// The caption to be used with the PictureUrl member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string PictureCaption;
 
@@ -1633,7 +1476,7 @@ namespace Arena.Custom.HDC.WebService
 
         /// <summary>
         /// The caption to be used with the Topic member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string TopicCaption;
 
@@ -1645,7 +1488,7 @@ namespace Arena.Custom.HDC.WebService
 
         /// <summary>
         /// The caption to be used with the Url member of the
-        /// RpcSmallGroupDetails structure.
+        /// RpcSmallGroupInformation structure.
         /// </summary>
         public string UrlCaption;
 
@@ -1724,20 +1567,6 @@ namespace Arena.Custom.HDC.WebService
         /// descendents. This property is read-only.
         /// </summary>
         public int? MemberCount;
-    }
-
-    /// <summary>
-    /// Contains detailed information about a group cluster. This
-    /// structure conforms to the standard RPC retrieval and update
-    /// rules.
-    /// </summary>
-    public struct RpcSmallGroupClusterDetails
-    {
-        /// <summary>
-        /// The cluster ID that this detail record provides
-        /// information about.
-        /// </summary>
-        public int ClusterID;
 
         /// <summary>
         /// The ID of the person who is the administrator of
@@ -1871,20 +1700,6 @@ namespace Arena.Custom.HDC.WebService
         /// The total number of members in this small group.
         /// </summary>
         public int? MemberCount;
-    }
-
-    /// <summary>
-    /// Contains the more detailed information about a small group.
-    /// This structure conforms to the standard RPC retrieval and
-    /// update rules.
-    /// </summary>
-    public struct RpcSmallGroupDetails
-    {
-        /// <summary>
-        /// The ID number of the small group that this structure is
-        /// providing detailed information about.
-        /// </summary>
-        public int GroupID;
 
         /// <summary>
         /// The person who is considered the leader of this small
@@ -1988,10 +1803,9 @@ namespace Arena.Custom.HDC.WebService
     /// <summary>
     /// Identifies an Arena lookup value. Not all details are
     /// specified in this structure, only those which are needed
-    /// to quickly get the value (as a string) and then be able
-    /// to get more information, if required, via the
-    /// RpcLookupDetails structure. This structure is currently
-    /// read-only.
+    /// to quickly get the value (as a string) as well as determine
+    /// the other allowed types via the TypeID, etc. This structure
+    /// is currently read-only.
     /// </summary>
     public struct RpcLookup
     {
