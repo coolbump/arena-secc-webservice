@@ -482,7 +482,48 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The ID number of the profile to look up.</param>
         /// <returns>Basic profile information.</returns>
-        public RpcProfileInformation? GetProfileInformation(int profileID) { return null; }
+        public RpcProfileInformation GetProfileInformation(int profileID)
+        {
+            Profile profile;
+            RpcProfileInformation info;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            profile = new Profile(profileID);
+            info = new RpcProfileInformation();
+            info.ProfileID = profile.ProfileID;
+            if (info.ProfileID == -1)
+                return info;
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                info.Name = profile.Name;
+                info.Active = profile.Active;
+                info.Type = profile.ProfileType.ToString();
+                info.ProfileActiveCount = profile.ProfileActiveMemberCount;
+                info.ProfileMemberCount = profile.ProfileMemberCount;
+                if (profile.Campus.CampusId != -1)
+                {
+                    info.CampusID = profile.Campus.CampusId;
+                }
+                if (profile.Notes != "")
+                {
+                    info.Notes = profile.Notes;
+                }
+                if (profile.ParentProfileID != -1)
+                {
+                    info.ParentID = profile.ParentProfileID;
+                }
+            }
+
+            return info;
+        }
 
         /// <summary>
         /// Retrieve detailed information about a profile. If the profile is
@@ -491,7 +532,57 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The ID number of the profile to look up.</param>
         /// <returns>Detailed profile information.</returns>
-        public RpcProfileDetails? GetProfileDetails(int profileID) { return null; }
+        public RpcProfileDetails GetProfileDetails(int profileID)
+        {
+            Profile profile;
+            RpcProfileDetails details;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            profile = new Profile(profileID);
+            details = new RpcProfileDetails();
+            details.ProfileID = profile.ProfileID;
+            if (details.ProfileID == -1)
+                return details;
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                details.ActiveCount = profile.ActiveMembers;
+                details.CriticalCount = profile.CriticalMembers;
+                details.NavigationUrl = profile.NavigationUrl;
+                details.NoContactCount = profile.NoContactMembers;
+                details.OwnerID = profile.Owner.PersonID;
+                details.OwnerRelationshipStrength = profile.OwnerRelationshipStrength;
+                details.PeerRelationshipStrength = profile.PeerRelationshipStrength;
+                details.PendingCount = profile.PendingMembers;
+                details.ReviewCount = profile.InReviewMembers;
+                details.TotalCount = profile.TotalMembers;
+                if (profile.CreatedBy != "")
+                {
+                    details.CreatedBy = profile.CreatedBy;
+                }
+                if (profile.DateCreated.Year != 1900)
+                {
+                    details.DateCreated = profile.DateCreated;
+                }
+                if (profile.DateModified.Year != 1900)
+                {
+                    details.DateModified = profile.DateModified;
+                }
+                if (profile.ModifiedBy != "")
+                {
+                    details.ModifiedBy = profile.ModifiedBy;
+                }
+            }
+
+            return details;
+        }
 
         /// <summary>
         /// Retrieve all the ID numbers of the profiles directly beneath
@@ -499,7 +590,38 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The ID number of the profile in question.</param>
         /// <returns>Integer array of the child profile ID numbers.</returns>
-        public int[] GetProfileChildren(int profileID) { return null; }
+        public int[] GetProfileChildren(int profileID)
+        {
+            Profile profile;
+            ArrayList list;
+            int i;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            profile = new Profile(profileID);
+            if (profile.ProfileID == -1)
+                return new int[0];
+            list = new ArrayList();
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                for (i = 0; i < profile.ChildProfiles.Count; i++)
+                {
+                    if (ProfileOperationAllowed(currentLogin.PersonID, profile.ChildProfiles[i].ProfileID, OperationType.View) == true)
+                    {
+                        list.Add(profile.ChildProfiles[i].ProfileID);
+                    }
+                }
+            }
+
+            return (int[])list.ToArray(typeof(int));
+        }
 
         /// <summary>
         /// Rerieves the profile ID numbers of all root level profiles of
@@ -507,21 +629,91 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileType">The integer value of the profile type.</param>
         /// <returns>Integer array of the root profiles.</returns>
-        public int[] GetProfileRoots(int profileType) { return null; }
+        public int[] GetProfileRoots(int profileType)
+        {
+            ProfileCollection collection;
+            ArrayList list;
+            int i;
+
+
+            collection = new ProfileCollection();
+            collection.LoadChildProfiles(-1, DefaultOrganizationID(), (ProfileType)profileType, currentLogin.PersonID);
+            list = new ArrayList();
+            for (i = 0; i < collection.Count; i++)
+            {
+                if (ProfileOperationAllowed(currentLogin.PersonID, collection[i].ProfileID, OperationType.View) == true)
+                {
+                    list.Add(collection[i].ProfileID);
+                }
+            }
+
+            return (int[])list.ToArray(typeof(int));;
+        }
 
         /// <summary>
         /// Get the people ID numbers of all members of this profile.
         /// </summary>
         /// <param name="profileID">Profile to retrieve member list from.</param>
         /// <returns>Integer array of people IDs.</returns>
-        public int[] GetProfileMembers(int profileID) { return null; }
+        public int[] GetProfileMembers(int profileID)
+        {
+            Profile profile;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            profile = new Profile(profileID);
+            if (profile.ProfileID == -1)
+                return new int[0];
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                profile.LoadMemberArray();
+                return (int[])profile.MemberArray.ToArray(typeof(int));
+            }
+
+            return new int[0];
+        }
 
         /// <summary>
         /// Get a list of all occurence IDs for a profile.
         /// </summary>
         /// <param name="profileID">The profile to list occurences of.</param>
         /// <returns>Integer array of occurrence IDs.</returns>
-        public int[] GetProfileOccurrences(int profileID) { return null; }
+        public int[] GetProfileOccurrences(int profileID)
+        {
+            Profile profile;
+            ArrayList list;
+            int i;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            profile = new Profile(profileID);
+            if (profile.ProfileID == -1)
+                return new int[0];
+            list = new ArrayList(profile.Occurrences.Count);
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                for (i = 0; i < profile.Occurrences.Count; i++)
+                {
+                    list.Add(profile.Occurrences[i].OccurrenceID);
+                }
+            }
+
+            return (int[])list.ToArray(typeof(int));
+        }
 
         #endregion
 
@@ -641,6 +833,7 @@ namespace Arena.Custom.HDC.WebService
 
         #endregion
 
+        #region Private methods for validating security.
         /// <summary>
         /// This method attempts to log the session in given the users
         /// credentials. Currently this is done by a username/password
@@ -660,7 +853,6 @@ namespace Arena.Custom.HDC.WebService
             return loginUser;
         }
 
-        #region Private methods for validating security.
         /// <summary>
         /// Determines if the personID has access to perform the
         /// indicated operation on the person field in question.
@@ -735,6 +927,8 @@ namespace Arena.Custom.HDC.WebService
         }
         #endregion
 
+        #region Generic convenience methods.
+
         /// <summary>
         /// Retrieve the default organization ID for this web
         /// service. This is retrieved via the "Organization"
@@ -768,6 +962,8 @@ namespace Arena.Custom.HDC.WebService
 
             return url.ToString();
         }
+
+        #endregion
     }
 
     #region Data structures used in RPC communication
@@ -994,14 +1190,14 @@ namespace Arena.Custom.HDC.WebService
         public int ProfileID;
 
         /// <summary>
-        /// The person login that owns this profile.
+        /// The personID that owns this profile.
         /// </summary>
-        public string Owner;
+        public int OwnerID;
 
         /// <summary>
         /// The person login that created this profile.
         /// </summary>
-        public int CreatedBy;
+        public string CreatedBy;
 
         /// <summary>
         /// The date and time this profile as initially created.
@@ -1011,7 +1207,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The person login who last modified this profile.
         /// </summary>
-        public int ModifiedBy;
+        public string ModifiedBy;
 
         /// <summary>
         /// The date and time that this profile was last modified.
