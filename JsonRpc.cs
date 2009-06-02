@@ -52,16 +52,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetPersonDetails", Idempotent = true)]
-        [JsonRpcHelp("Get the basic person detailed information for the given person ID.")]
-        public IDictionary GetPersonDetails(IDictionary credentials, int personID)
-        {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
-
-            return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonDetails(personID));
-        }
-
-
         [JsonRpcMethod("GetPersonContactInformation", Idempotent = true)]
         [JsonRpcHelp("Get the contact information for the given person ID.")]
         public IDictionary GetPersonContactInformation(IDictionary credentials, int personID)
@@ -79,6 +69,16 @@ namespace Arena.Custom.HDC.WebService
             CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
 
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonProfiles(personID));
+        }
+
+        
+        [JsonRpcMethod("GetProfileInformation", Idempotent = true)]
+        [JsonRpcHelp("Get the information about the given profileID.")]
+        public IDictionary GetProfileInformation(IDictionary credentials, int profileID)
+        {
+            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+
+            return (IDictionary)JsonConverter.EncodeObject(rpc.GetProfileInformation(profileID));
         }
     }
 

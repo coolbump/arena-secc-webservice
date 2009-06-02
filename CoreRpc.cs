@@ -9,6 +9,18 @@ using Arena.Core;
 using Arena.Security;
 using Arena.Enums;
 
+//
+// To allow cross-domain support we need to not use any
+// dictionary methods. Also need to test if JSONP (cross-domain
+// requests) allows for returning objects (dicts, arrays).
+// So a single Login method is needed that returns an authorization
+// key that is used in the rest of the methods.
+//
+// When providing the authorization key, if the username/password
+// is already found (or rather the username is found matching the
+// auth key, and the password matches the user in the login table,
+// then the same key is returned and the "valid" period is extended.
+//
 
 namespace Arena.Custom.HDC.WebService
 {
@@ -474,7 +486,7 @@ namespace Arena.Custom.HDC.WebService
                 info.Type = profile.ProfileType.ToString();
                 info.ProfileActiveCount = profile.ProfileActiveMemberCount;
                 info.ProfileMemberCount = profile.ProfileMemberCount;
-                if (profile.Campus.CampusId != -1)
+                if (profile.Campus != null && profile.Campus.CampusId != -1)
                 {
                     info.CampusID = profile.Campus.CampusId;
                 }
