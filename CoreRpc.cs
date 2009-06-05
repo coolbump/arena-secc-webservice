@@ -8,6 +8,8 @@ using Arena.Portal;
 using Arena.Core;
 using Arena.Security;
 using Arena.Enums;
+using Arena.Peer;
+
 
 //
 // To allow cross-domain support we need to not use any
@@ -71,6 +73,7 @@ namespace Arena.Custom.HDC.WebService
 
             version.Major = 0;
             version.Minor = 1;
+            version.ArenaVersion = new Arena.DataLayer.Utility.Database().GetArenaDatabaseVersion();
 
             return version;
         }
@@ -204,7 +207,21 @@ namespace Arena.Custom.HDC.WebService
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Family_Information, OperationType.View))
             {
+                ArrayList members = new ArrayList();
+
+                foreach (FamilyMember fm in person.Family().FamilyMembers)
+                {
+                    RpcFamilyMember member = new RpcFamilyMember();
+
+                    member.PersonID = fm.PersonID;
+                    member.Role = new RpcLookup(fm.FamilyRole);
+                    member.FullName = fm.FullName;
+
+                    members.Add(member);
+                }
+
                 info.FamilyID = person.FamilyId;
+                info.FamilyMembers = (RpcFamilyMember[])members.ToArray(typeof(RpcFamilyMember));
             }
             if (person.BirthDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
             {
@@ -266,9 +283,46 @@ namespace Arena.Custom.HDC.WebService
             {
                 info.SpouseID = person.Spouse().PersonID;
             }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Peers, OperationType.View))
+            {
+                ArrayList peers = new ArrayList();
+                ScoreCollection scores = new ScoreCollection();
+
+                scores.LoadBySourcePersonId(personID, 1);
+                foreach (Score s in scores)
+                {
+                    RpcPeer peer = new RpcPeer();
+
+                    peer.PersonID = s.TargetPersonId;
+                    peer.FullName = new Person(s.TargetPersonId).FullName;
+                    peer.Score = s.TotalScore;
+                    peer.Trend = s.UpwardTrend;
+                }
+
+                info.PeerCount = scores.Count;
+                info.Peers = (RpcPeer[])peers.ToArray(typeof(RpcPeer));
+            }
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Relationships, OperationType.View))
+            {
+                ArrayList relationships = new ArrayList();
+
+                foreach (Relationship pr in person.Relationships)
+                {
+                    RpcRelationship r = new RpcRelationship();
+
+                    r.PersonID = pr.RelatedPersonId;
+                    r.FullName = pr.RelatedPerson.FullName;
+                    r.Relationship = pr.RelationshipType.Relationship;
+
+                    relationships.Add(r);
+                }
+
+                info.Relationships = (RpcRelationship[])relationships.ToArray(typeof(RpcRelationship));
+            }
 
             return info;
         }
+
         /// <summary>
         /// Retrieves the contact information associated with the
         /// personID. Only information that the user has permission
@@ -386,6 +440,56 @@ namespace Arena.Custom.HDC.WebService
             }
 
             return contact;
+        }
+
+        /// <summary>
+        /// Retrieve an RpcPeerList object to identify all the peers the
+        /// given personID has. If no peers are found then the peers member
+        /// of the returned object will be empty. If the person is not found
+        /// then an empty peers member will be returned.
+        /// </summary>
+        /// <param name="personID">The ID of the person who we are interested in.</param>
+        /// <param name="peerCount">The number of peers to return, if more peers are available only this many will be returned.</param>
+        /// <returns>A new RpcPeerList object which contains the information requested.</returns>
+        public RpcPeerList GetPersonPeers(int personID, int start, int count)
+        {
+            ScoreCollection scores = new ScoreCollection();
+            RpcPeerList list = new RpcPeerList();
+            ArrayList peers = new ArrayList();
+            Score s;
+            int i;
+
+            //
+            // Load the peers for this person.
+            //
+            scores.LoadBySourcePersonId(personID, 1);
+
+            //
+            // Make sure we have valid values to work with.
+            //
+            if (start < 0)
+                start = 0;
+            if ((start + count) > scores.Count)
+                count = (scores.Count - start);
+
+            //
+            // Walk each peer and add them to our array.
+            //
+            for (i = 0; i < count; i++)
+            {
+                RpcPeer peer = new RpcPeer();
+
+                s = scores[i + start];
+                peer.PersonID = s.TargetPersonId;
+                peer.FullName = new Person(s.TargetPersonId).FullName;
+                peer.Score = s.TotalScore;
+                peer.Trend = s.UpwardTrend;
+            }
+
+            list.PersonID = personID;
+            list.Peers = (RpcPeer[])peers.ToArray(typeof(RpcPeer));
+
+            return list;
         }
 
         /// <summary>
@@ -901,6 +1005,11 @@ namespace Arena.Custom.HDC.WebService
         /// The minor protocol version in use by this server.
         /// </summary>
         public int Minor;
+
+        /// <summary>
+        /// A string which contains the Arena version of this system.
+        /// </summary>
+        public string ArenaVersion;
     }
 
     /// <summary>
@@ -935,10 +1044,12 @@ namespace Arena.Custom.HDC.WebService
         /// Integer array of ministry profile IDs.
         /// </summary>
         public int[] Ministry;
+
         /// <summary>
         /// Integer array of serving profile IDs.
         /// </summary>
         public int[] Serving;
+
         /// <summary>
         /// Integer array of event profile IDs.
         /// TODO: Need to support event profiles. How is security
@@ -1349,6 +1460,31 @@ namespace Arena.Custom.HDC.WebService
         /// The URL to be used to retrieve the person's image.
         /// </summary>
         public string ImageUrl;
+
+        /// <summary>
+        /// Other family members of this person's family. This
+        /// list contains the ID of the person and not the full
+        /// information about the person.
+        /// </summary>
+        public RpcFamilyMember[] FamilyMembers;
+
+        /// <summary>
+        /// The total number of peers for this person. Whatever this
+        /// number is only the top 10 are put in the Peers member. You
+        /// can retrieve more with the GetPersonPeers method.
+        /// </summary>
+        public int? PeerCount;
+
+        /// <summary>
+        /// The top 10 peers of this person. You can use the PeerCount
+        /// member to determine if there are more peers to be retrieved.
+        /// </summary>
+        public RpcPeer[] Peers;
+
+        /// <summary>
+        /// The relationships that have been defined for this person.
+        /// </summary>
+        public RpcRelationship[] Relationships;
     }
 
     /// <summary>
@@ -1848,6 +1984,152 @@ namespace Arena.Custom.HDC.WebService
         /// The textual value of this lookup.
         /// </summary>
         public string Value;
+    }
+
+    /// <summary>
+    /// Identifies a single peer by its person ID, formal name and
+    /// the peer level. In general, the formal name should be used
+    /// for displaying and the Level should be used for sorting with
+    /// higher numbers displayed first.
+    /// </summary>
+    public struct RpcPeer
+    {
+        /// <summary>
+        /// The personID of the peer identified by this structure.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// A string which identifies the formal name of this person, this
+        /// name can and should be used when displaying the name of the
+        /// person in a list to be chosen from for navigating to this person.
+        /// </summary>
+        public string FullName;
+
+        /// <summary>
+        /// The peer score value of this person.
+        /// </summary>
+        public int Score;
+
+        /// <summary>
+        /// True if this peer has an upward trend, false otherwise.
+        /// </summary>
+        public bool Trend;
+    }
+
+    /// <summary>
+    /// This structure identifies a list of peers and the person
+    /// to whom the list belongs.
+    /// </summary>
+    public struct RpcPeerList
+    {
+        /// <summary>
+        /// The person to identify who this peer list belongs to.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// The list of peers associated with this person.
+        /// </summary>
+        public RpcPeer[] Peers;
+    }
+
+    /// <summary>
+    /// Identifies a single member of a family by his or her
+    /// ID number.
+    /// </summary>
+    public struct RpcFamilyMember
+    {
+        /// <summary>
+        /// The ID of the person who is being identified.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// A string which identifies the formal name of this person, this
+        /// name can and should be used when displaying the name of the
+        /// person in a list to be chosen from for navigating to this person.
+        /// </summary>
+        public string FullName;
+
+        /// <summary>
+        /// Identifies the role of the person in the family.
+        /// </summary>
+        public RpcLookup Role;
+    }
+
+    /// <summary>
+    /// Identifies a single member of a family by his or her
+    /// RpcPersonInformation structure.
+    /// </summary>
+    public struct RpcFamilyMemberInformation
+    {
+        /// <summary>
+        /// The person who is being identified.
+        /// </summary>
+        public RpcPersonInformation Person;
+
+        /// <summary>
+        /// A string which identifies the formal name of this person, this
+        /// name can and should be used when displaying the name of the
+        /// person in a list to be chosen from for navigating to this person.
+        /// </summary>
+        public string FullName;
+
+        /// <summary>
+        /// Identifies the role of the person in the family.
+        /// </summary>
+        public RpcLookup Role;
+    }
+
+    /// <summary>
+    /// Identifies a single relationship to the person ID in this
+    /// structure. The specific type of relationship is identified
+    /// by the Relationship lookup member.
+    /// </summary>
+    public struct RpcRelationship
+    {
+        /// <summary>
+        /// Identifies the person by ID number of this relationship.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// A string which identifies the formal name of this person, this
+        /// name can and should be used when displaying the name of the
+        /// person in a list to be chosen from for navigating to this person.
+        /// </summary>
+        public string FullName;
+
+        /// <summary>
+        /// The lookup which identifies a given relationship.
+        /// </summary>
+        public string Relationship;
+    }
+
+    /// <summary>
+    /// This structure identifies a family unit. It provides what
+    /// little information is stored for a family in addition to
+    /// the entire RpcPersonInformation structure for each member
+    /// of the family.
+    /// </summary>
+    public struct RpcFamily
+    {
+        /// <summary>
+        /// The ID number which identifies this family.
+        /// </summary>
+        public int FamilyID;
+
+        /// <summary>
+        /// The name of this family, this is not neccessarily the
+        /// same as the last name of the family.
+        /// </summary>
+        public string FamilyName;
+
+        /// <summary>
+        /// This array identifies the members of this family.
+        /// </summary>
+        public RpcFamilyMemberInformation[] FamilyMembers;
     }
 
     #endregion
