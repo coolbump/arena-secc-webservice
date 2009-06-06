@@ -16,6 +16,8 @@ namespace Arena.Custom.HDC.WebService
     [JsonRpcHelp("This service provides an interface into Arena via a JSON-RPC web query system.")]
     public class JsonRpc : JsonRpcHandler, IRequiresSessionState
     {
+        #region Anonymous (non-authenticated) methods.
+
         [JsonRpcMethod("Version", Idempotent = false)]
         [JsonRpcHelp("Return the version of the API in use by the server.")]
         public IDictionary Version()
@@ -29,6 +31,40 @@ namespace Arena.Custom.HDC.WebService
         public bool IsClientVersionSupported(int major, int minor)
         {
             return CoreRpc.IsClientVersionSupported(major, minor);
+        }
+
+        #endregion
+
+
+        #region Methods for working with people records.
+
+        [JsonRpcMethod("FindPeopleByName", Idempotent = true)]
+        [JsonRpcHelp("Retrieves an array of all person IDs that match the names.")]
+        public int[] FindPeople(string authorization, string firstName, string lastName)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.FindPeopleByName(firstName, lastName);
+        }
+
+
+        [JsonRpcMethod("FindPeopleByPhone", Idempotent = true)]
+        [JsonRpcHelp("Retrieves an array of all person IDs that match the phone number.")]
+        public int[] FindPeople(string authorization, string phone)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.FindPeopleByPhone(phone);
+        }
+
+
+        [JsonRpcMethod("FindPeopleByEmail", Idempotent = true)]
+        [JsonRpcHelp("Retrieves an array of all person IDs that match the email address.")]
+        public int[] FindPeopleByEmail(string authorization, string email)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.FindPeopleByEmail(email);
         }
 
 
@@ -62,6 +98,16 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
+        [JsonRpcMethod("GetPersonPeers", Idempotent = true)]
+        [JsonRpcHelp("Get all or some of the known peers for the given person.")]
+        public int[] GetPersonPeers(string authorization, int personID, int start, int count)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.GetPersonPeers(personID, start, count);
+        }
+        
+
         [JsonRpcMethod("GetPersonProfiles", Idempotent = true)]
         [JsonRpcHelp("Get the profile IDs that the member is a part of.")]
         public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
@@ -71,15 +117,62 @@ namespace Arena.Custom.HDC.WebService
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonProfiles(personID));
         }
 
-        
+        #endregion
+
+
+        #region Methods for working with profile records.
+
         [JsonRpcMethod("GetProfileInformation", Idempotent = true)]
         [JsonRpcHelp("Get the information about the given profileID.")]
-        public IDictionary GetProfileInformation(IDictionary credentials, int profileID)
+        public IDictionary GetProfileInformation(string authorization, int profileID)
         {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+            CoreRpc rpc = new CoreRpc(authorization);
 
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetProfileInformation(profileID));
         }
+
+
+        [JsonRpcMethod("GetProfileChildren", Idempotent = true)]
+        [JsonRpcHelp("Retrieve the child profile IDs of the given profile.")]
+        public int[] GetProfileChildren(string authorization, int profileID)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.GetProfileChildren(profileID);
+        }
+
+
+        [JsonRpcMethod("GetProfileRoots", Idempotent = true)]
+        [JsonRpcHelp("Retrieve all the root profile ID numbers for the given profile type.")]
+        public int[] GetProfileRoots(string authorization, int profileType)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.GetProfileRoots(profileID);
+        }
+
+
+        [JsonRpcMethod("GetProfileMembers", Idempotent = true)]
+        [JsonRpcHelp("Get all members of the profile.")]
+        public int[] GetProfileMembers(string authorization, int profileID)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.GetProfileMembers(profileID);
+        }
+
+
+        [JsonRpcMethod("GetProfileOccurrences", Idempotent = true)]
+        [JsonRpcHelp("Get all occurrences in this profile.")]
+        public int[] GetProfileOccurrences(string authorization, int profileID)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return rpc.GetProfileOccurrences(profileID);
+        }
+
+
+        #endregion
     }
 
     /// <summary>

@@ -23,6 +23,15 @@ using Arena.Peer;
 // auth key, and the password matches the user in the login table,
 // then the same key is returned and the "valid" period is extended.
 //
+// auth table
+//      key_id - unique ID number
+//      guid_key - The GUID key for this user session
+//      login_id - The username this key is associated with
+//      temporary - Bool. If true then this is a temporary key and
+//                  will be deleted automatically
+//      last_login - The datetime of the last login
+//      last_login_ip - The IP address of the last login
+//
 
 namespace Arena.Custom.HDC.WebService
 {
@@ -48,6 +57,19 @@ namespace Arena.Custom.HDC.WebService
         /// The currently authenticated Arena.Login user.
         /// </summary>
         private Login currentLogin;
+
+        /// <summary>
+        /// Creates an instance of the CoreRpc class with the given
+        /// authorization key. This key must have been retrieved via
+        /// a previous call to Login. If the authorization key is
+        /// invalid or has expired then an exception is raised.
+        /// </summary>
+        /// <param name="authorization">Provides the authorization key needed to authenticate the user.</param>
+        public CoreRpc(string authorization)
+        {
+            // TODO: Put actual code here.
+            currentLogin = new Login("admin");
+        }
 
         /// <summary>
         /// Creates an instance of the WebService.Core class with the given
@@ -97,6 +119,57 @@ namespace Arena.Custom.HDC.WebService
         #region Methods for working with people records.
 
         /// <summary>
+        /// Find people given the first and last name. If you only want
+        /// to search by last name then pass an empty string for the first
+        /// name field, ditto for searching by first name only.
+        /// </summary>
+        /// <param name="firstName">Partial or full first name to search for.</param>
+        /// <param name="lastName">Partial or full last name to search for.</param>
+        /// <returns>Integer array of person ID numbers that were found.</returns>
+        public int[] FindPeopleByName(string firstName, string lastName)
+        {
+            RpcPeopleQuery query = new RpcPeopleQuery();
+
+
+            query.FirstName = firstName;
+            query.LastName = lastName;
+
+            return FindPeople(query);
+        }
+
+        /// <summary>
+        /// Search for people whose phone number matches the given phone
+        /// number exactly. Phone numbers should match your local pattern,
+        /// such as "(000) 000-0000".
+        /// </summary>
+        /// <param name="phone">The full phone number to search for.</param>
+        /// <returns>An integer array of person IDs that matches the phone number.</returns>
+        public int[] FindPeopleByPhone(string phone)
+        {
+            RpcPeopleQuery query = new RpcPeopleQuery();
+
+
+            query.Phone = phone;
+
+            return FindPeople(query);
+        }
+
+        /// <summary>
+        /// Find matching people records given a full e-mail address.
+        /// </summary>
+        /// <param name="email">Full e-mail address to search for.</param>
+        /// <returns>Integer array of person IDs that match the e-mail address.</returns>
+        public int[] FindPeopleByEmail(string email)
+        {
+            RpcPeopleQuery query = new RpcPeopleQuery();
+
+
+            query.Email = email;
+
+            return FindPeople(query);
+        }
+
+        /// <summary>
         /// Queries the database to find all matching personIDs, which
         /// are returned as an integer array. Only a single type of
         /// search is performed in order of precedence by: Name and
@@ -114,13 +187,39 @@ namespace Arena.Custom.HDC.WebService
             // Find all the people matching the query.
             //
             people = new PersonCollection();
+            personIDs = new ArrayList(people.Count);
             if (query.FirstName != null && query.LastName != null)
                 people.LoadByName(query.FirstName, query.LastName);
+            else if (query.Email != null)
+                people.LoadByEmail(query.Email);
+            else if (query.Phone != null)
+            {
+                System.Data.SqlClient.SqlDataReader reader;
+                string queryString;
+
+                //
+                // Query the database for all person_id's who have a stripped
+                // phone number containing the given phone number.
+                //
+                queryString = "SELECT DISTINCT person_id FROM core_person_phone WHERE phone_number_stripped LIKE '%" + query.Phone + "%';";
+                reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(queryString);
+
+                //
+                // Walk the reader and add all the results.
+                //
+                while (reader.Read())
+                {
+                    personIDs.Add(reader[0]);
+                }
+
+                reader.Close();
+
+                return (int[])personIDs.ToArray(typeof(int));
+            }
 
             //
             // Build the array of person IDs.
             //
-            personIDs = new ArrayList(people.Count);
             for (i = 0; i < people.Count; i++)
             {
                 personIDs.Add(people[i].PersonID);
