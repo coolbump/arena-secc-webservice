@@ -33,6 +33,14 @@ namespace Arena.Custom.HDC.WebService
             return CoreRpc.IsClientVersionSupported(major, minor);
         }
 
+
+        [JsonRpcMethod("Login", Idempotent = true)]
+        [JsonRpcHelp("Performs a login for the user's session and returns a new authorization key to be used throughout the session.")]
+        public string Login(string loginID, string password)
+        {
+            return CoreRpc.Login(loginID, password);
+        }
+
         #endregion
 
 
@@ -100,11 +108,11 @@ namespace Arena.Custom.HDC.WebService
 
         [JsonRpcMethod("GetPersonPeers", Idempotent = true)]
         [JsonRpcHelp("Get all or some of the known peers for the given person.")]
-        public int[] GetPersonPeers(string authorization, int personID, int start, int count)
+        public IDictionary GetPersonPeers(string authorization, int personID, int start, int count)
         {
             CoreRpc rpc = new CoreRpc(authorization);
 
-            return rpc.GetPersonPeers(personID, start, count);
+            return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonPeers(personID, start, count));
         }
         
 
@@ -148,7 +156,7 @@ namespace Arena.Custom.HDC.WebService
         {
             CoreRpc rpc = new CoreRpc(authorization);
 
-            return rpc.GetProfileRoots(profileID);
+            return rpc.GetProfileRoots(profileType);
         }
 
 

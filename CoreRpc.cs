@@ -114,6 +114,33 @@ namespace Arena.Custom.HDC.WebService
             return false;
         }
 
+        /// <summary>
+        /// Log the user in with a loginID and password. This method
+        /// will create temporary authorization credentials for the user
+        /// to use for the near future.
+        /// </summary>
+        /// <param name="loginID">The login_id the user wishes to login with.</param>
+        /// <param name="password">The password used to authenticate the login.</param>
+        /// <returns>Authorization key that uniquely identifies this login session.</returns>
+        static public string Login(string loginID, string password)
+        {
+            Login loginUser;
+
+
+            //
+            // Verify that the users login_id and password are valid.
+            //
+            loginUser = new Login(loginID);
+//            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase(password) == false)
+//                throw new UnauthorizedAccessException("Invalid username or password.");
+
+            //
+            // TODO: Generate temporary authorization credentials.
+            //
+
+            return Guid.NewGuid().ToString();
+        }
+
         #endregion
 
         #region Methods for working with people records.
