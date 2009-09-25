@@ -72,6 +72,10 @@
     <None Include="jsonrpc.ashx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="SQL\cust_hdc_webservice_authorization.sql" />
+    <None Include="SQL\cust_hdc_webservice_sp_get_authorizationByApiKey.sql" />
+    <None Include="SQL\cust_hdc_webservice_sp_get_authorizationByAuthorizationId.sql" />
+    <None Include="SQL\cust_hdc_webservice_sp_save_authorization.sql" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

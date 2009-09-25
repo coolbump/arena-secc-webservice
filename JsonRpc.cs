@@ -78,9 +78,9 @@ namespace Arena.Custom.HDC.WebService
 
         [JsonRpcMethod("FindPeople", Idempotent = true)]
         [JsonRpcHelp("Retrieves an array of all person IDs that match the search criterea.")]
-        public int[] FindPeople(IDictionary credentials, IDictionary query)
+        public int[] FindPeople(string authorization, IDictionary query)
         {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+            CoreRpc rpc = new CoreRpc(authorization);
 
             return rpc.FindPeople((RpcPeopleQuery)JsonConverter.DecodeObject(query, typeof(RpcPeopleQuery)));
         }
@@ -88,9 +88,9 @@ namespace Arena.Custom.HDC.WebService
 
         [JsonRpcMethod("GetPersonInformation", Idempotent = true)]
         [JsonRpcHelp("Get the basic person information for the given person ID.")]
-        public IDictionary GetPersonInformation(IDictionary credentials, int personID)
+        public IDictionary GetPersonInformation(string authorization, int personID)
         {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+            CoreRpc rpc = new CoreRpc(authorization);
 
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonInformation(personID));
         }
@@ -98,9 +98,9 @@ namespace Arena.Custom.HDC.WebService
 
         [JsonRpcMethod("GetPersonContactInformation", Idempotent = true)]
         [JsonRpcHelp("Get the contact information for the given person ID.")]
-        public IDictionary GetPersonContactInformation(IDictionary credentials, int personID)
+        public IDictionary GetPersonContactInformation(string authorization, int personID)
         {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+            CoreRpc rpc = new CoreRpc(authorization);
 
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonContactInformation(personID));
         }
@@ -118,11 +118,21 @@ namespace Arena.Custom.HDC.WebService
 
         [JsonRpcMethod("GetPersonProfiles", Idempotent = true)]
         [JsonRpcHelp("Get the profile IDs that the member is a part of.")]
-        public IDictionary GetPersonProfiles(IDictionary credentials, int personID)
+        public IDictionary GetPersonProfiles(string authorization, int personID)
         {
-            CoreRpc rpc = new CoreRpc((RpcCredentials)JsonConverter.DecodeObject(credentials, typeof(RpcCredentials)));
+            CoreRpc rpc = new CoreRpc(authorization);
 
             return (IDictionary)JsonConverter.EncodeObject(rpc.GetPersonProfiles(personID));
+        }
+
+
+        [JsonRpcMethod("GetPersonNotes", Idempotent = true)]
+        [JsonRpcHelp("Retrieve the notes that exist for a given person ID")]
+        public Object[] GetPersonNotes(string authorization, int personID)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return (Object[])JsonConverter.EncodeObject(rpc.GetPersonNotes(personID));
         }
 
         #endregion

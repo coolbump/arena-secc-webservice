@@ -4,11 +4,14 @@ using System.Configuration;
 using System.Collections;
 using System.Web;
 using System.Text;
+using System.Data;
+using System.Data.SqlClient;
 using Arena.Portal;
 using Arena.Core;
 using Arena.Security;
 using Arena.Enums;
 using Arena.Peer;
+using Arena.Organization;
 
 
 //
@@ -22,15 +25,6 @@ using Arena.Peer;
 // is already found (or rather the username is found matching the
 // auth key, and the password matches the user in the login table,
 // then the same key is returned and the "valid" period is extended.
-//
-// auth table
-//      key_id - unique ID number
-//      guid_key - The GUID key for this user session
-//      login_id - The username this key is associated with
-//      temporary - Bool. If true then this is a temporary key and
-//                  will be deleted automatically
-//      last_login - The datetime of the last login
-//      last_login_ip - The IP address of the last login
 //
 
 namespace Arena.Custom.HDC.WebService
@@ -67,19 +61,42 @@ namespace Arena.Custom.HDC.WebService
         /// <param name="authorization">Provides the authorization key needed to authenticate the user.</param>
         public CoreRpc(string authorization)
         {
-            // TODO: Put actual code here.
-            currentLogin = new Login("admin");
-        }
+            ArrayList paramList = new ArrayList();
+            SqlParameter paramOut = new SqlParameter();
+            SqlDataReader reader;
 
-        /// <summary>
-        /// Creates an instance of the WebService.Core class with the given
-        /// login credentials. If the credentials are invalid then an
-        /// exception is raised.
-        /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
-        public CoreRpc(RpcCredentials credentials)
-        {
-            currentLogin = LoginForCredentials(credentials);
+            //
+            // Get the authorization provided by the end user and
+            // verify it. Also add another hour to it.
+            //
+            paramList.Add(new SqlParameter("ApiKey", new Guid(authorization)));
+            reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
+                        "cust_hdc_webservice_sp_get_authorizationByApiKey", paramList);
+            if (reader.HasRows == false)
+                throw new UnauthorizedAccessException("Invalid authorization provided.");
+            reader.Read();
+
+            //
+            // Set the login used for this process.
+            //
+            currentLogin = new Login(reader["login_id"].ToString());
+
+            //
+            // Update the authorization
+            //
+            paramList = new ArrayList();
+            paramList.Add(new SqlParameter("AuthorizationId", Convert.ToInt32(reader["authorization_id"])));
+            paramList.Add(new SqlParameter("LoginId", reader["login_id"].ToString()));
+            paramList.Add(new SqlParameter("Temporary", Convert.ToInt32("0")));
+            paramList.Add(new SqlParameter("Expires", DateTime.Now.AddHours(1)));
+            reader.Close();
+            paramOut.ParameterName = "@ID";
+            paramOut.Direction = ParameterDirection.Output;
+            paramOut.SqlDbType = SqlDbType.Int;
+            paramList.Add(paramOut);
+            reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
+                        "cust_hdc_webservice_sp_save_authorization", paramList);
+            reader.Close();
         }
 
         #region Anonymous (non-authenticated) methods.
@@ -131,14 +148,43 @@ namespace Arena.Custom.HDC.WebService
             // Verify that the users login_id and password are valid.
             //
             loginUser = new Login(loginID);
-//            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase(password) == false)
-//                throw new UnauthorizedAccessException("Invalid username or password.");
+            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase(password) == false)
+                throw new UnauthorizedAccessException("Invalid username or password.");
 
             //
-            // TODO: Generate temporary authorization credentials.
+            // Generate a temporary authorization key for the user to use
+            // during this session.
             //
+            ArrayList paramList = new ArrayList();
+            SqlParameter paramOut = new SqlParameter();
+            int authorizationId;
+            string apiKey;
 
-            return Guid.NewGuid().ToString();
+            paramList.Add(new SqlParameter("AuthorizationId", -1));
+            paramList.Add(new SqlParameter("LoginId", loginID));
+            paramList.Add(new SqlParameter("Temporary", 1));
+            paramList.Add(new SqlParameter("Expires", DateTime.Now.AddHours(1)));
+            paramOut.ParameterName = "@ID";
+            paramOut.Direction = ParameterDirection.Output;
+            paramOut.SqlDbType = SqlDbType.Int;
+            paramList.Add(paramOut);
+            SqlDataReader reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
+                        "cust_hdc_webservice_sp_save_authorization", paramList);
+            authorizationId = (int)((SqlParameter)(paramList[paramList.Count - 1])).Value;
+            reader.Close();
+
+            //
+            // Retrieve the new GUID value for this login.
+            //
+            paramList = new ArrayList();
+            paramList.Add(new SqlParameter("AuthorizationId", authorizationId));
+            reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
+                        "cust_hdc_webservice_sp_get_authorizationByAuthorizationId", paramList);
+            reader.Read();
+            apiKey = reader["apikey"].ToString();
+            reader.Close();
+
+            return apiKey;
         }
 
         #endregion
@@ -349,7 +395,7 @@ namespace Arena.Custom.HDC.WebService
                 info.FamilyID = person.FamilyId;
                 info.FamilyMembers = (RpcFamilyMember[])members.ToArray(typeof(RpcFamilyMember));
             }
-            if (person.BirthDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
+            if (person.BirthDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
             {
                 info.BirthDate = person.BirthDate;
             }
@@ -361,15 +407,24 @@ namespace Arena.Custom.HDC.WebService
             {
                 info.Gender = person.Gender.ToString();
             }
-            if (person.GraduationDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Grade, OperationType.View))
+            if (person.GraduationDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Grade, OperationType.View))
             {
-                info.Grade = Person.CalculateGradeLevel(person.GraduationDate, Convert.ToDateTime(new Organization.OrganizationSetting(DefaultOrganizationID(), "GradePromotionDate").Value));
+                try
+                {
+                    info.Grade = Person.CalculateGradeLevel(person.GraduationDate, Convert.ToDateTime(new Organization.OrganizationSetting(DefaultOrganizationID(), "GradePromotionDate").Value));
+                    if (info.Grade == -1)
+                        info.Grade = -person.GraduationDate.Year;
+                }
+                catch
+                {
+                    info.Grade = -person.GraduationDate.Year;
+                }
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Activity_Level, OperationType.View))
             {
                 info.ActiveMeter = person.ActiveMeter;
             }
-            if (person.AnniversaryDate.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
+            if (person.AnniversaryDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
             {
                 info.Anniversary = person.AnniversaryDate;
             }
@@ -389,11 +444,11 @@ namespace Arena.Custom.HDC.WebService
             {
                 info.InactiveReason = new RpcLookup(person.InactiveReason);
             }
-            if (person.LastAttended.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
+            if (person.LastAttended.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
             {
                 info.LastAttended = person.LastAttended;
             }
-            if (person.DateLastVerified.Year != 1900 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
+            if (person.DateLastVerified.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
             {
                 info.LastVerified = person.DateLastVerified;
             }
@@ -405,9 +460,13 @@ namespace Arena.Custom.HDC.WebService
             {
                 info.PrintStatement = person.PrintStatement;
             }
-            if (person.Spouse() != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
+            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
             {
-                info.SpouseID = person.Spouse().PersonID;
+                if (person.Spouse() != null)
+                {
+                    info.SpouseID = person.Spouse().PersonID;
+                }
+                info.MaritalStatus = new RpcLookup(person.MaritalStatus);
             }
             if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Peers, OperationType.View))
             {
@@ -478,7 +537,7 @@ namespace Arena.Custom.HDC.WebService
             // If the person was found then load up any contact
             // information we have.
             //
-            if (person.PersonID == -1)
+            if (person.PersonID != -1)
             {
                 if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
                 {
@@ -677,6 +736,37 @@ namespace Arena.Custom.HDC.WebService
             }
 
             return list;
+        }
+
+        /// <summary>
+        /// Retrieves all the notes the logged in user has access to
+        /// for the given person ID. The notes are returned as an array
+        /// of RpcNote objects.
+        /// </summary>
+        /// <param name="personID">The person to load the notes for.</param>
+        /// <returns></returns>
+        public RpcNote[] GetPersonNotes(int personID)
+        {
+            PersonHistoryCollection phc;
+            ArrayList array = new ArrayList();
+
+
+            phc = new PersonHistoryCollection(DefaultOrganizationID(), personID, 355, currentLogin.LoginID);
+            foreach (PersonHistory ph in phc)
+            {
+                RpcNote note = new RpcNote();
+
+                note.PersonID = ph.PersonID;
+                note.Text = ph.Text;
+                note.CreatedBy = ph.CreatedBy;
+                note.LastUpdated = ph.DateModified;
+                note.Display = ph.DisplayFlag;
+                note.DisplayExpiration = ph.DisplayExpiration;
+
+                array.Add(note);
+            }
+
+            return (RpcNote[])array.ToArray(typeof(RpcNote));
         }
 
         #endregion
@@ -963,25 +1053,6 @@ namespace Arena.Custom.HDC.WebService
 
         #region Private methods for validating security.
         /// <summary>
-        /// This method attempts to log the session in given the users
-        /// credentials. Currently this is done by a username/password
-        /// each web request, but later might include some cached
-        /// method of authenticating.
-        /// </summary>
-        /// <param name="credentials">Provides the login credentials needed to authenticate the user.</param>
-        /// <returns>Login class for the authenticated user. Raises UnauthorizedAccessException on invalid login.</returns>
-        private Login LoginForCredentials(RpcCredentials credentials)
-        {
-            Login loginUser;
-
-            loginUser = new Login(credentials.UserName);
-            //            if (loginUser.IsAccountLocked() == true || loginUser.AuthenticateInDatabase(credentials.Password) == false)
-            //                throw new UnauthorizedAccessException("Invalid username or password.");
-
-            return loginUser;
-        }
-
-        /// <summary>
         /// Determines if the personID has access to perform the
         /// indicated operation on the person field in question.
         /// </summary>
@@ -1136,27 +1207,6 @@ namespace Arena.Custom.HDC.WebService
         /// A string which contains the Arena version of this system.
         /// </summary>
         public string ArenaVersion;
-    }
-
-    /// <summary>
-    /// Provides the authentication credentials required to
-    /// call any of the instance methods. Currently the only
-    /// authentication scheme supported in this version is
-    /// username/password authentication. Later versions will
-    /// support a single login and then use a session key to
-    /// continue working in that session.
-    /// </summary>
-    public struct RpcCredentials
-    {
-        /// <summary>
-        /// The login id (username) to use for authenticating this
-        /// session.
-        /// </summary>
-        public string UserName;
-        /// <summary>
-        /// Password associated with the login id.
-        /// </summary>
-        public string Password;
     }
 
     /// <summary>
@@ -2256,6 +2306,45 @@ namespace Arena.Custom.HDC.WebService
         /// This array identifies the members of this family.
         /// </summary>
         public RpcFamilyMemberInformation[] FamilyMembers;
+    }
+    
+    /// <summary>
+    /// Information about a specific note. Most relavent information
+    /// is included in this structure.
+    /// </summary>
+    public struct RpcNote
+    {
+        /// <summary>
+        /// The ID of the person that this note pertains to.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// This note should be displayed at the top of the person's
+        /// record as it is considered very important information.
+        /// </summary>
+        public bool Display;
+
+        /// <summary>
+        /// DateTime stamp that this note will expire and no longer
+        /// display at the top of a person's record.
+        /// </summary>
+        public DateTime DisplayExpiration;
+
+        /// <summary>
+        /// DateTime stamp that this note was last updated on.
+        /// </summary>
+        public DateTime LastUpdated;
+
+        /// <summary>
+        /// Login ID name of the person who created this note.
+        /// </summary>
+        public string CreatedBy;
+
+        /// <summary>
+        /// The actual body text of this note.
+        /// </summary>
+        public string Text;
     }
 
     #endregion
