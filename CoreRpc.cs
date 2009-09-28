@@ -838,6 +838,64 @@ namespace Arena.Custom.HDC.WebService
         }
 
         /// <summary>
+        /// Retrieve the information about a person's membership in a
+        /// given profile. If the profile is not found then -1 is returned in
+        /// the ProfileID and PersonID member variables. If no access is
+        /// permitted to the profile then the ProfileID and PersonID member
+        /// variables are the only variables filled in.
+        /// </summary>
+        /// <param name="profileID">The ID number of the profile to look up.</param>
+        /// <param name="personID">The Id number of the person (member) to look up.</param>
+        /// <returns>Basic information about a person's membership in a profile.</returns>
+        public RpcProfileMemberInformation GetProfileMemberInformation(int profileID, int personID)
+        {
+            Profile profile;
+            ProfileMember member;
+            RpcProfileMemberInformation info;
+
+
+            //
+            // Load up the profile and check to see if it was found or not.
+            //
+            member = new ProfileMember(profileID, personID);
+            info = new RpcProfileMemberInformation();
+            info.ProfileID = member.ProfileID;
+            info.PersonID = member.PersonID;
+            if (info.ProfileID == -1)
+                return info;
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            {
+                info.AttendanceCount = member.AttendanceCount;
+                if (member.DateActive.Year > 1901 && member.DateActive.Year != 9999)
+                    info.DateActive = member.DateActive;
+                if (member.DateDormant.Year > 1901 && member.DateDormant.Year != 9999)
+                    info.DateDormant = member.DateDormant;
+                if (member.DateInReview.Year > 1901 && member.DateInReview.Year != 9999)
+                    info.DateInReview = member.DateInReview;
+                if (member.DatePending.Year > 1901 && member.DatePending.Year != 9999)
+                    info.DatePending = member.DatePending;
+                info.MemberNotes = member.MemberNotes;
+                info.Source = new RpcLookup(member.Source);
+                info.Status = new RpcLookup(member.Status);
+                info.StatusReason = member.StatusReason;
+
+                profile = new Profile(profileID);
+                info.ProfileName = profile.Name;
+                if (member.NickName == "")
+                    info.PersonName = member.FirstName + " " + member.LastName;
+                else
+                    info.PersonName = member.NickName + " " + member.LastName;
+            }
+
+            return info;
+        }
+
+        /// <summary>
         /// Retrieve all the ID numbers of the profiles directly beneath
         /// this profile.
         /// </summary>
@@ -1439,6 +1497,88 @@ namespace Arena.Custom.HDC.WebService
         /// profile.
         /// </summary>
         public int PeerRelationshipStrength;
+    }
+
+    /// <summary>
+    /// Contains the information that describes a person's status as a
+    /// member of a profile.
+    /// </summary>
+    public struct RpcProfileMemberInformation
+    {
+        /// <summary>
+        /// The Profile that this record pertains to.
+        /// </summary>
+        public int ProfileID;
+
+        /// <summary>
+        /// The Person that this record pertains to.
+        /// </summary>
+        public int PersonID;
+
+        /// <summary>
+        /// The number of occurrences in this profile that this person
+        /// has attended.
+        /// </summary>
+        public int? AttendanceCount;
+
+        /// <summary>
+        /// The date stamp that this person was made active in this
+        /// profile.
+        /// </summary>
+        public DateTime? DateActive;
+
+        /// <summary>
+        /// The date stamp that this person was made dormant in this
+        /// profile.
+        /// </summary>
+        public DateTime? DateDormant;
+
+        /// <summary>
+        /// The date stamp that this person was marked as in review
+        /// in this profile.
+        /// </summary>
+        public DateTime? DateInReview;
+
+        /// <summary>
+        /// The date stamp that this person was marked as pending in
+        /// this profile.
+        /// </summary>
+        public DateTime? DatePending;
+
+        /// <summary>
+        /// Any notes that have been placed on this person for this
+        /// profile.
+        /// </summary>
+        public string MemberNotes;
+
+        /// <summary>
+        /// The source of this person, how they got added to the profile.
+        /// </summary>
+        public RpcLookup? Source;
+
+        /// <summary>
+        /// The status of this person in this profile.
+        /// </summary>
+        public RpcLookup? Status;
+
+        /// <summary>
+        /// The descriptive reason for why the person has the status they
+        /// do. This may not always exist as only some status' have a
+        /// reason.
+        /// </summary>
+        public string StatusReason;
+
+        /// <summary>
+        /// The name of the profile. This is a convenience item to reduce
+        /// network overhead.
+        /// </summary>
+        public string ProfileName;
+
+        /// <summary>
+        /// The name of the person, first and last name only. This is a
+        /// convenience item to reduce network overhead.
+        /// </summary>
+        public string PersonName;
     }
 
     /// <summary>

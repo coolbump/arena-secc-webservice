@@ -150,6 +150,16 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
+        [JsonRpcMethod("GetProfileMemberInformation", Idempotent = true)]
+        [JsonRpcHelp("Get the information about a person's membership in a profileID.")]
+        public IDictionary GetProfileMemberInformation(string authorization, int profileID, int personID)
+        {
+            CoreRpc rpc = new CoreRpc(authorization);
+
+            return (IDictionary)JsonConverter.EncodeObject(rpc.GetProfileMemberInformation(profileID, personID));
+        }
+
+
         [JsonRpcMethod("GetProfileChildren", Idempotent = true)]
         [JsonRpcHelp("Retrieve the child profile IDs of the given profile.")]
         public int[] GetProfileChildren(string authorization, int profileID)
