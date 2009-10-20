@@ -160,6 +160,16 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
+		[JsonRpcMethod("GetProfileMemberActivity", Idempotent = true)]
+		[JsonRpcHelp("Get the activity information about a member's activity in a profile.")]
+		public Object[] GetProfileMemberActivity(string authorization, int profileID, int personID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return (Object[])JsonConverter.EncodeObject(rpc.GetProfileMemberActivity(profileID, personID));
+		}
+
+
         [JsonRpcMethod("GetProfileChildren", Idempotent = true)]
         [JsonRpcHelp("Retrieve the child profile IDs of the given profile.")]
         public int[] GetProfileChildren(string authorization, int profileID)

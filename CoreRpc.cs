@@ -870,7 +870,7 @@ namespace Arena.Custom.HDC.WebService
             //
             if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
             {
-                info.AttendanceCount = member.AttendanceCount;
+				info.AttendanceCount = member.AttendanceCount;
                 if (member.DateActive.Year > 1901 && member.DateActive.Year != 9999)
                     info.DateActive = member.DateActive;
                 if (member.DateDormant.Year > 1901 && member.DateDormant.Year != 9999)
@@ -884,8 +884,8 @@ namespace Arena.Custom.HDC.WebService
                 info.Status = new RpcLookup(member.Status);
                 info.StatusReason = member.StatusReason;
 
-                profile = new Profile(profileID);
-                info.ProfileName = profile.Name;
+				profile = new Profile(profileID);
+				info.ProfileName = profile.Name;
                 if (member.NickName == "")
                     info.PersonName = member.FirstName + " " + member.LastName;
                 else
@@ -894,6 +894,41 @@ namespace Arena.Custom.HDC.WebService
 
             return info;
         }
+
+		public RpcProfileMemberActivity[] GetProfileMemberActivity(int profileID, int personID)
+		{
+			ArrayList list = new ArrayList();
+
+            //
+            // Check if the user has access to view information about the
+            // profile.
+            //
+			if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+			{
+				DataTable dt;
+				StringBuilder sb = new StringBuilder();
+				RpcProfileMemberActivity activity;
+				Profile profile = new Profile(profileID);
+
+				dt = new Arena.DataLayer.Core.ProfileMemberActivityData().GetProfileMemberActivityDetails_DT(DefaultOrganizationID(), profile.ProfileType, profile.Owner.PersonID, personID);
+				foreach (DataRow dr in dt.Rows)
+				{
+					activity = new RpcProfileMemberActivity();
+
+					activity.activity_type = dr["activity_type"].ToString();
+					activity.created_by = dr["created_by"].ToString();
+					activity.date_created = Convert.ToDateTime(dr["date_created"].ToString());
+					activity.notes = dr["notes"].ToString();
+					activity.person_id = Convert.ToInt32(dr["person_id"].ToString());
+					activity.profile_id = Convert.ToInt32(dr["profile_id"].ToString());
+					activity.profile_name = dr["profile_name"].ToString();
+
+					list.Add(activity);
+				}
+			}
+
+			return (RpcProfileMemberActivity[])list.ToArray(typeof(RpcProfileMemberActivity));
+		}
 
         /// <summary>
         /// Retrieve all the ID numbers of the profiles directly beneath
@@ -1551,6 +1586,11 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         public string MemberNotes;
 
+		/// <summary>
+		/// The activity of the person in this profile type.
+		/// </summary>
+		public RpcProfileMemberActivity[] MemberActivity;
+
         /// <summary>
         /// The source of this person, how they got added to the profile.
         /// </summary>
@@ -1580,6 +1620,57 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         public string PersonName;
     }
+
+	/// <summary>
+	/// The Profile Member Activity contains the activity of a profile member
+	/// for a given profile type and owner. The query to retrieve this
+	/// information retrieves all activity where the owner of the profile now
+	/// matches the owner of the profile when the activity was created and
+	/// the type of profile is the same. For example, if I am the owner of 3
+	/// different profiles and somebody retrieves their profile activity in
+	/// one of those 3 profiles, they get the activity of all 3.
+	/// </summary>
+	public struct RpcProfileMemberActivity
+	{
+		/// <summary>
+		/// The ID number of the profile this activity is for.
+		/// </summary>
+		public int profile_id;
+
+		/// <summary>
+		/// The ID number of the person this activity is for.
+		/// </summary>
+		public int person_id;
+
+		/// <summary>
+		/// The date that this activity was created.
+		/// </summary>
+		public DateTime date_created;
+
+		/// <summary>
+		/// The login name of the person who created this activity.
+		/// </summary>
+		public string created_by;
+
+		/// <summary>
+		/// The name of the profile this activity relates to. This name
+		/// is static. It is the name of the profile when the activity
+		/// was created, not neccessarily the current name of the
+		/// profile.
+		/// </summary>
+		public string profile_name;
+
+		/// <summary>
+		/// The type of activity this item is.
+		/// </summary>
+		public string activity_type;
+
+		/// <summary>
+		/// The general notes for this activity, which can be either a
+		/// system formatted string or a user defined textual string.
+		/// </summary>
+		public string notes;
+	}
 
     /// <summary>
     /// The information used in querying the database to find people
