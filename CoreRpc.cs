@@ -12,6 +12,7 @@ using Arena.Security;
 using Arena.Enums;
 using Arena.Peer;
 using Arena.Organization;
+using Arena.SmallGroup;
 
 
 //
@@ -1070,7 +1071,19 @@ namespace Arena.Custom.HDC.WebService
         /// no categories exist then an empty array is returned.
         /// </summary>
         /// <returns>Integer array of group categoryIDs.</returns>
-        public int[] GetSmallGroupCategories() { return null; }
+        public int[] GetSmallGroupCategories()
+		{
+			ArrayList list = new ArrayList();
+			CategoryCollection categories = new CategoryCollection();
+
+
+			foreach (Category cat in categories)
+			{
+				list.Add(cat.CategoryID);
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
 
         /// <summary>
         /// Retrieve the information about a small group category.
@@ -1079,7 +1092,51 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The category to find information about.</param>
         /// <returns>Basic information about a group category.</returns>
-        public RpcSmallGroupCategoryInformation? GetSmallGroupCategoryInformation(int categoryID) { return null; }
+		public RpcSmallGroupCategoryInformation? GetSmallGroupCategoryInformation(int categoryID)
+		{
+			RpcSmallGroupCategoryInformation info = new RpcSmallGroupCategoryInformation();
+			Category cat = new Category(categoryID);
+			ArrayList roles = new ArrayList();
+
+
+			if (cat.CategoryID == -1)
+			{
+				info.CategoryID = -1;
+				return info;
+			}
+
+			info.CategoryID = cat.CategoryID;
+			info.AgeGroupCaption = cat.AgeGroupCaption;
+			info.AllowBulkUpdate = cat.AllowBulkUpdates;
+			info.AllowRegistrations = cat.AllowRegistrations;
+			info.CreditAsSmallGroup = cat.CreditAsSmallGroup;
+			info.DefaultRole = new RpcLookup(cat.DefaultRole);
+			info.DescriptionCaption = cat.DescriptionCaption;
+			info.HistoryIsPrivate = cat.HistoryIsPrivate;
+			info.LeaderCaption = cat.LeaderCaption;
+			info.LocationTargetCaption = cat.LocationTargetCaption;
+			info.MaritalPreferenceCaption = cat.MaritalPreferenceCaption;
+			info.MaximumMembersCaption = cat.MaximumMembersCaption;
+			info.MeetingDayCaption = cat.MeetingDayCaption;
+			info.Name = cat.CategoryName;
+			info.NameCaption = cat.NameCaption;
+			info.NotesCaption = cat.NotesCaption;
+			info.ParentCaption = cat.ParentCaption;
+			info.PictureCaption = cat.PictureCaption;
+			info.ScheduleCaption = cat.ScheduleCaption;
+			info.TopicCaption = cat.TopicCaption;
+			info.TypeCaption = cat.TypeCaption;
+			info.UrlCaption = cat.UrlCaption;
+			info.UsesArea = cat.UsesArea;
+			info.UseUniformNumber = cat.UseUniformNumber;
+			foreach (Lookup lkup in cat.ValidRoles)
+			{
+				roles.Add(new RpcLookup(lkup));
+			}
+			info.ValidRoles = (RpcLookup[])roles.ToArray(typeof(RpcLookup));
+
+			return info;
+		}
 
         /// <summary>
         /// Retrieve a list of all group clusters at the root level of the
@@ -1088,7 +1145,22 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The parent category to find all root clusters of.</param>
         /// <returns>Integer array of clusterIDs.</returns>
-        public int[] GetSmallGroupRootClusters(int categoryID) { return null; }
+		public int[] GetSmallGroupRootClusters(int categoryID)
+		{
+			GroupClusterCollection clusters = new GroupClusterCollection(categoryID, DefaultOrganizationID());
+			ArrayList list = new ArrayList();
+
+
+			foreach (GroupCluster cluster in clusters)
+			{
+				if (GroupClusterOperationAllowed(currentLogin.PersonID, cluster.GroupClusterID, OperationType.View) == true)
+				{
+					list.Add(cluster.GroupClusterID);
+				}
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
 
         /// <summary>
         /// Retrieve a list of small group clusters that reside underneath
@@ -1099,7 +1171,55 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The parent clusterID to find clusters under.</param>
         /// <returns>An integer array of group clusters.</returns>
-        public int[] GetSmallGroupClusters(int clusterID) { return null; }
+        public int[] GetSmallGroupClusters(int clusterID)
+		{
+			GroupClusterCollection clusters = new GroupClusterCollection(clusterID);
+			ArrayList list = new ArrayList();
+
+
+			foreach (GroupCluster cluster in clusters)
+			{
+				if (GroupClusterOperationAllowed(currentLogin.PersonID, cluster.GroupClusterID, OperationType.View) == true)
+				{
+					list.Add(cluster.GroupClusterID);
+				}
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
+
+		public RpcSmallGroupClusterType? GetSmallGroupClusterTypeInformation(int typeID)
+		{
+			RpcSmallGroupClusterType info = new RpcSmallGroupClusterType();
+			RpcSmallGroupClusterLevel level;
+			ClusterType type = new ClusterType(typeID);
+			ArrayList list = new ArrayList();
+
+
+			info.TypeID = type.ClusterTypeID;
+			if (info.TypeID == -1)
+				return info;
+
+			info.AllowOccurrences = type.AllowOccurrences;
+			info.AllowRegistration = type.AllowRegistration;
+			info.CategoryID = type.CategoryID;
+			info.LeaderRelationshipStrength = type.LeaderRelationshipStrength;
+			info.Name = type.Name;
+			info.PeerRelationshipSrength = type.PeerRelationshipStrength;
+			foreach (ClusterLevel lv in type.Levels)
+			{
+				level = new RpcSmallGroupClusterLevel();
+				level.AllowGroups = lv.AllowGroups;
+				level.Level = lv.Level;
+				level.Name = lv.LevelName;
+				level.TypeID = lv.ClusterTypeID;
+
+				list.Add(level);
+			}
+			info.Levels = (RpcSmallGroupClusterLevel[])list.ToArray(typeof(RpcSmallGroupClusterLevel));
+
+			return info;
+		}
 
         /// <summary>
         /// Retrieve the information about a group cluster. If the group
@@ -1107,7 +1227,71 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The cluster to retrieve information about.</param>
         /// <returns>Basic information about the group cluster.</returns>
-        public RpcSmallGroupClusterInformation? GetSmallGroupClusterInformation(int clusterID) { return null; }
+		public RpcSmallGroupClusterInformation? GetSmallGroupClusterInformation(int clusterID)
+		{
+			RpcSmallGroupClusterInformation info = new RpcSmallGroupClusterInformation();
+			GroupCluster cluster = new GroupCluster(clusterID);
+
+
+			info.ClusterID = cluster.GroupClusterID;
+			if (info.ClusterID == -1)
+				return info;
+
+			info.Active = cluster.Active;
+			info.Admin = new RpcPersonReference(cluster.Admin);
+			info.AreaID = cluster.Area.AreaID;
+			info.CategoryID = cluster.ClusterType.CategoryID;
+			info.TypeID = cluster.ClusterTypeID;
+			info.CreatedBy = cluster.CreatedBy;
+			info.DateCreated = cluster.DateCreated;
+			info.DateModified = cluster.DateModified;
+			info.Description = cluster.Description;
+			if (cluster.ImageBlob.BlobID != -1)
+			{
+				info.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + cluster.ImageBlob.GUID;
+			}
+			info.Leader = new RpcPersonReference(cluster.Leader);
+			info.Level = cluster.ClusterLevelID;
+			info.ModifiedBy = cluster.ModifiedBy;
+			info.Name = cluster.Name;
+			if (cluster.NavigationUrl != null && cluster.NavigationUrl.Length > 0)
+				info.NavigationUrl = cluster.NavigationUrl;
+			if (cluster.Notes != null && cluster.Notes.Length > 0)
+				info.Notes = cluster.Notes;
+			info.ParentID = cluster.ParentClusterID;
+			if (cluster.ClusterUrl != null && cluster.ClusterUrl.Length > 0)
+				info.Url = cluster.ClusterUrl;
+
+			//
+			// Get the counts from Arena.
+			//
+			SqlParameter groupCount, memberCount, unassignedRegCount, assignedRegCount;
+			ArrayList paramList = new ArrayList();
+
+			groupCount = new SqlParameter("@GroupCount", SqlDbType.Int);
+			groupCount.Direction = ParameterDirection.Output;
+			memberCount = new SqlParameter("@MemberCount", SqlDbType.Int);
+			memberCount.Direction = ParameterDirection.Output;
+			unassignedRegCount = new SqlParameter("@UnassignedRegCount", SqlDbType.Int);
+			unassignedRegCount.Direction = ParameterDirection.Output;
+			assignedRegCount = new SqlParameter("@AssignedRegCount", SqlDbType.Int);
+			assignedRegCount.Direction = ParameterDirection.Output;
+
+			paramList.Add(new SqlParameter("@ParentClusterID", clusterID));
+			paramList.Add(new SqlParameter("@ActiveOnly", 1));
+			paramList.Add(groupCount);
+			paramList.Add(memberCount);
+			paramList.Add(unassignedRegCount);
+			paramList.Add(assignedRegCount);
+
+			new Arena.DataLayer.Organization.OrganizationData().ExecuteNonQuery("smgp_sp_get_counts", paramList);
+			info.GroupCount = (int)groupCount.Value;
+			info.MemberCount = (int)memberCount.Value;
+			info.RegistrationCount = (int)unassignedRegCount.Value;
+			info.ClusterCount = cluster.ChildClusters.Count;
+
+			return info;
+		}
 
         /// <summary>
         /// Retrieve a list of small groups which reside under the parent group
@@ -1115,7 +1299,22 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The parent cluster to find small groups under.</param>
         /// <returns>An integer array of small groups under the parent cluster.</returns>
-        public int[] GetSmallGroups(int clusterID) { return null; }
+		public int[] GetSmallGroups(int clusterID)
+		{
+			ArrayList list = new ArrayList();
+			GroupCollection groups = new GroupCollection(clusterID);
+
+
+			if (GroupClusterOperationAllowed(currentLogin.PersonID, clusterID, OperationType.View) == true)
+			{
+				foreach (Group group in groups)
+				{
+					list.Add(group.GroupID);
+				}
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
 
         /// <summary>
         /// Retrieves information about the small group. If the small
@@ -1123,7 +1322,47 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="groupID">The small group to retrieve information about.</param>
         /// <returns>Basic information about the small group.</returns>
-        public RpcSmallGroupInformation? GetSmallGroupInformation(int groupID) { return null; }
+		public RpcSmallGroupInformation? GetSmallGroupInformation(int groupID)
+		{
+			RpcSmallGroupInformation info = new RpcSmallGroupInformation();
+			Group group = new Group(groupID);
+
+
+			info.GroupID = group.GroupID;
+			if (group.GroupID == -1 || GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == false)
+				return info;
+
+			info.Active = group.Active;
+			info.AreaID = group.AreaID;
+			info.AverageAge = group.AverageAge;
+			info.CategoryID = group.ClusterType.CategoryID;
+			info.ClusterID = group.GroupClusterID;
+			info.CreatedBy = group.CreatedBy;
+			info.DateCreated = group.DateCreated;
+			info.DateModified = group.DateModified;
+			info.Description = group.Description;
+			info.Distance = group.Distance;
+			info.LeaderID = group.LeaderID;
+			info.Level = group.ClusterLevelID;
+			info.MaximumMembers = group.MaxMembers;
+			info.MeetingDay = new RpcLookup(group.MeetingDay);
+			info.MemberCount = group.Members.Count;
+			info.ModifiedBy = group.ModifiedBy;
+			info.Name = group.Name;
+			info.NavigationUrl = group.NavigationUrl;
+			info.Notes = group.Notes;
+			info.PictureUrl = BaseUrl();
+			info.PrimaryAge = new RpcLookup(group.PrimaryAge);
+			info.PrimaryMaritalStatus = new RpcLookup(group.PrimaryMaritalStatus);
+			info.RegistrationCount = group.RegistrationCount;
+			info.Schedule = group.Schedule;
+			info.TargetLocationID = group.TargetLocationID;
+			info.Topic = new RpcLookup(group.Topic);
+			info.TypeID = group.ClusterTypeID;
+			info.Url = group.GroupUrl;
+
+			return info;
+		}
 
         /// <summary>
         /// Find all people who are members of the small group and return their
@@ -1132,7 +1371,22 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="groupID">The small group to find members of.</param>
         /// <returns>Integer array of personIDs.</returns>
-        public int[] GetSmallGroupMembers(int groupID) { return null; }
+		public int[] GetSmallGroupMembers(int groupID)
+		{
+			ArrayList list = new ArrayList();
+			Group group = new Group(groupID);
+
+
+			if (GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == true)
+			{
+				foreach (GroupMember member in group.Members)
+				{
+					list.Add(member.PersonID);
+				}
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
 
         /// <summary>
         /// Find all occurrences of the given small group. If the small group
@@ -1140,7 +1394,22 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="groupID">The small group whose occurrences we are interested in.</param>
         /// <returns>Integer array of occurenceIDs.</returns>
-        public int[] GetSmallGroupOccurrences(int groupID) { return null; }
+		public int[] GetSmallGroupOccurrences(int groupID)
+		{
+			ArrayList list = new ArrayList();
+			Group group = new Group(groupID);
+
+
+			if (GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == true)
+			{
+				foreach (GroupOccurrence occurrence in group.Occurrences)
+				{
+					list.Add(occurrence.OccurrenceID);
+				}
+			}
+
+			return (int[])list.ToArray(typeof(int));
+		}
 
         #endregion
 
@@ -1184,6 +1453,26 @@ namespace Arena.Custom.HDC.WebService
 
             return PermissionsOperationAllowed(permissions, personID, operation);
         }
+
+		/// <summary>
+		/// Determines if the personID has access to perform the indicated operation
+		/// on the small group cluster in question.
+		/// </summary>
+		/// <param name="personID">The ID number of the person whose security access we are checkin.</param>
+		/// <param name="clusterID">The ID number of the profile the user wants access to.</param>
+		/// <param name="operation">The type of access the user needs to proceed.</param>
+		/// <returns>true/false indicating if the operation is allowed.</returns>
+		static private bool GroupClusterOperationAllowed(int personID, int clusterID, OperationType operation)
+		{
+			PermissionCollection permissions;
+
+			//
+			// Load the permissions.
+			//
+			permissions = new PermissionCollection(ObjectType.Group_Cluster, clusterID);
+
+			return PermissionsOperationAllowed(permissions, personID, operation);
+		}
 
         /// <summary>
         /// Checks the PermissionCollection class to determine if the
@@ -1688,6 +1977,18 @@ namespace Arena.Custom.HDC.WebService
         public bool? Staff;
     }
 
+	public struct RpcPersonReference
+	{
+        public RpcPersonReference(Person p)
+        {
+            this.PersonID = p.PersonID;
+            this.Name = p.FullName;
+        }
+
+		public int PersonID;
+		public string Name;
+	}
+
     /// <summary>
     /// Retrieve the basic information about a person. This structure
     /// follows the standard RPC retrieval and update rules.
@@ -2089,14 +2390,12 @@ namespace Arena.Custom.HDC.WebService
         public bool? Active;
 
         /// <summary>
-        /// Retrieve the LevelID of this group cluster.
-        /// TODO: What is this?
+        /// Retrieve the level of this group cluster.
         /// </summary>
-        public int? LevelID;
+        public int? Level;
 
         /// <summary>
-        /// Retrieve the TypeID of this group cluster.
-        /// TODO: What is this?
+        /// Retrieve the cluster type of this group cluster.
         /// </summary>
         public int? TypeID;
 
@@ -2109,6 +2408,11 @@ namespace Arena.Custom.HDC.WebService
         /// Notes that relate to this group cluster.
         /// </summary>
         public string Notes;
+
+		/// <summary>
+		/// The number of child clusters under this cluster.
+		/// </summary>
+		public int? ClusterCount;
 
         /// <summary>
         /// The number of pending registrations in this group
@@ -2123,17 +2427,23 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         public int? MemberCount;
 
-        /// <summary>
-        /// The ID of the person who is the administrator of
-        /// this group cluster.
-        /// </summary>
-        public int? AdminID;
+		/// <summary>
+		/// The number of small groups in this group cluster and
+		/// its descendents. This property is read-only.
+		/// </summary>
+		public int? GroupCount;
 
         /// <summary>
-        /// The ID of the person who is considered the leader of
+        /// The person who is the administrator of
         /// this group cluster.
         /// </summary>
-        public int? LeaderID;
+        public RpcPersonReference? Admin;
+
+        /// <summary>
+        /// The person who is considered the leader of
+        /// this group cluster.
+        /// </summary>
+		public RpcPersonReference? Leader;
 
         /// <summary>
         /// The Area ID that this group cluster belongs to.
@@ -2156,7 +2466,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date this group cluster was created on.
         /// </summary>
-        public DateTime DateCreated;
+        public DateTime? DateCreated;
 
         /// <summary>
         /// The name of the last person to have modified this small
@@ -2167,7 +2477,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date this group cluster was last modified on.
         /// </summary>
-        public DateTime DateModified;
+        public DateTime? DateModified;
 
         /// <summary>
         /// The URL that can be used to navigate to this group
@@ -2181,6 +2491,26 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         public string ImageUrl;
     }
+
+	public struct RpcSmallGroupClusterType
+	{
+		public bool? AllowOccurrences;
+		public bool? AllowRegistration;
+		public int? CategoryID;
+		public int TypeID;
+		public int? LeaderRelationshipStrength;
+		public string Name;
+		public int? PeerRelationshipSrength;
+		public RpcSmallGroupClusterLevel[] Levels;
+	}
+
+	public struct RpcSmallGroupClusterLevel
+	{
+		public int TypeID;
+		public int Level;
+		public string Name;
+		public bool AllowGroups;
+	}
 
     /// <summary>
     /// Contains the general information about a small group. This
@@ -2217,14 +2547,12 @@ namespace Arena.Custom.HDC.WebService
         public bool? Active;
 
         /// <summary>
-        /// The LevelID of this small group.
-        /// TODO: What is this?
+        /// The Level of this small group in the type.
         /// </summary>
-        public int? LevelID;
+        public int? Level;
 
         /// <summary>
         /// The TypeID of this small group.
-        /// TODO: What is this? Is this the CategoryID or a lookup?
         /// </summary>
         public int? TypeID;
 
@@ -2282,7 +2610,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date that this small group was created on.
         /// </summary>
-        public DateTime DateCreated;
+        public DateTime? DateCreated;
 
         /// <summary>
         /// The name of the last person to have modified this small
@@ -2293,7 +2621,7 @@ namespace Arena.Custom.HDC.WebService
         /// <summary>
         /// The date on which this small group was last modified on.
         /// </summary>
-        public DateTime DateModified;
+        public DateTime? DateModified;
 
         /// <summary>
         /// The URL to be used for navigating to this small group

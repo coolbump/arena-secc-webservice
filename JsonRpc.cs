@@ -209,9 +209,103 @@ namespace Arena.Custom.HDC.WebService
             return rpc.GetProfileOccurrences(profileID);
         }
 
-
         #endregion
-    }
+
+
+		#region Small Group Methods
+
+		[JsonRpcMethod("GetSmallGroupCategories", Idempotent = true)]
+		[JsonRpcHelp("Get all the small group categories in the system.")]
+		public int[] GetSmallGroupCategories(string authorization)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroupCategories();
+		}
+
+		[JsonRpcMethod("GetSmallGroupCategoryInformation", Idempotent = true)]
+		[JsonRpcHelp("Get the information about small group category information.")]
+		public IDictionary GetSmallGroupCategoryInformation(string authorization, int categoryID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupCategoryInformation(categoryID));
+		}
+
+		[JsonRpcMethod("GetSmallGroupRootClusters", Idempotent = true)]
+		[JsonRpcHelp("Get the clusters available at the root level of the given category.")]
+		public int[] GetSmallGroupRootClusters(string authorization, int categoryID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroupRootClusters(categoryID);
+		}
+
+		[JsonRpcMethod("GetSmallGroupClusterTypeInformation", Idempotent = true)]
+		[JsonRpcHelp("Retrieve the information for a cluster type.")]
+		public IDictionary GetSmallGroupClusterTypeInformation(string authorization, int typeID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupClusterTypeInformation(typeID));
+		}
+
+		[JsonRpcMethod("GetSmallGroupClusterInformation", Idempotent = true)]
+		[JsonRpcHelp("Retrieve the information about the specific small group cluster.")]
+		public IDictionary GetSmallGroupClusterInformation(string authorization, int clusterID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+			
+			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupClusterInformation(clusterID));
+		}
+
+		[JsonRpcMethod("GetSmallGroupClusters", Idempotent = true)]
+		[JsonRpcHelp("Get the small group clusters that exist underneath the given cluster.")]
+		public int[] GetSmallGroupClusters(string authorization, int clusterID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroupClusters(clusterID);
+		}
+
+		[JsonRpcMethod("GetSmallGroups", Idempotent = true)]
+		[JsonRpcHelp("Get a list of the small groups that exist underneath the given cluster.")]
+		public int[] GetSmallGroups(string authorization, int clusterID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroups(clusterID);
+		}
+
+		[JsonRpcMethod("GetSmallGroupInformation", Idempotent = true)]
+		[JsonRpcHelp("Retrieve the information about the specified small group.")]
+		public IDictionary GetSmallGroupInformation(string authorization, int groupID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupInformation(groupID));
+		}
+
+		[JsonRpcMethod("GetSmallGroupMembers", Idempotent = true)]
+		[JsonRpcHelp("Get the list of people who are members of the given small group.")]
+		public int[] GetSmallGroupMembers(string authorization, int groupID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroupMembers(groupID);
+		}
+
+		[JsonRpcMethod("GetSmallGroupOccurrences", Idempotent = true)]
+		[JsonRpcHelp("Get the list of occurrences of the given small group.")]
+		public int[] GetSmallGroupOccurrences(string authorization, int groupID)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+
+			return rpc.GetSmallGroupOccurrences(groupID);
+		}
+
+		#endregion
+	}
 
     /// <summary>
     /// This class provides the ability to encode and decode objects
