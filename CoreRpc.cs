@@ -1342,7 +1342,7 @@ namespace Arena.Custom.HDC.WebService
 			info.DateModified = group.DateModified;
 			info.Description = group.Description;
 			info.Distance = group.Distance;
-			info.LeaderID = group.LeaderID;
+			info.Leader = new RpcSmallGroupMemberReference(group, group.Leader);
 			info.Level = group.ClusterLevelID;
 			info.MaximumMembers = group.MaxMembers;
 			info.MeetingDay = new RpcLookup(group.MeetingDay);
@@ -1354,6 +1354,7 @@ namespace Arena.Custom.HDC.WebService
 			info.PictureUrl = BaseUrl();
 			info.PrimaryAge = new RpcLookup(group.PrimaryAge);
 			info.PrimaryMaritalStatus = new RpcLookup(group.PrimaryMaritalStatus);
+			info.Private = group.Private;
 			info.RegistrationCount = group.RegistrationCount;
 			info.Schedule = group.Schedule;
 			info.TargetLocationID = group.TargetLocationID;
@@ -1369,23 +1370,26 @@ namespace Arena.Custom.HDC.WebService
         /// person IDs. All members are returned including in-active members. If the
         /// small group has no members then an empty array is returned.
         /// </summary>
-        /// <param name="groupID">The small group to find members of.</param>
-        /// <returns>Integer array of personIDs.</returns>
-		public int[] GetSmallGroupMembers(int groupID)
+		/// <param name="groupID">The small group to find members of.</param>
+		/// <param name="startAtIndex">The 0-based index to start retrieving at.</param>
+		/// <param name="numberOfMembers">The maximum number of members to retrieve.</param>
+		/// <returns>Integer array of personIDs.</returns>
+		public RpcSmallGroupMemberReference[] GetSmallGroupMembers(int groupID, int startAtIndex, int numberOfMembers)
 		{
 			ArrayList list = new ArrayList();
 			Group group = new Group(groupID);
+			int i;
 
 
 			if (GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == true)
 			{
-				foreach (GroupMember member in group.Members)
+				for (i = startAtIndex; i < group.Members.Count && i < (startAtIndex + numberOfMembers); i++)
 				{
-					list.Add(member.PersonID);
+					list.Add(new RpcSmallGroupMemberReference(group.Members[i]));
 				}
 			}
 
-			return (int[])list.ToArray(typeof(int));
+			return (RpcSmallGroupMemberReference[])list.ToArray(typeof(RpcSmallGroupMemberReference));
 		}
 
         /// <summary>
@@ -1977,15 +1981,98 @@ namespace Arena.Custom.HDC.WebService
         public bool? Staff;
     }
 
+	/// <summary>
+	/// Defines the information that is needed to display a list of small
+	/// group members. 
+	/// </summary>
+	public struct RpcSmallGroupMemberReference
+	{
+		/// <summary>
+		/// Designated initializer for this structure.
+		/// </summary>
+		/// <param name="member">The small group member to create a reference for.</param>
+		public RpcSmallGroupMemberReference(GroupMember member)
+		{
+			Group g = new Group(member.GroupID);
+
+			this.PersonID = member.PersonID;
+			this.Name = member.FullName;
+			this.Active = member.Active;
+			this.RoleName = member.Role.Value;
+			if (g.ClusterType.Category.UseUniformNumber == true)
+				this.UniformNumber = member.UniformNumber;
+			else
+				this.UniformNumber = null;
+		}
+
+		/// <summary>
+		/// Designated initializer for constructing the leader reference to
+		/// a small group.
+		/// </summary>
+		/// <param name="group"></param>
+		/// <param name="leader"></param>
+		public RpcSmallGroupMemberReference(Group group, Person leader)
+		{
+			this.PersonID = leader.PersonID;
+			this.Name = leader.FullName;
+			this.Active = true;
+			this.RoleName = group.ClusterType.Category.LeaderCaption;
+			this.UniformNumber = null;
+		}
+
+		/// <summary>
+		/// The ID number that identifies this small group member. This ID
+		/// number can be used to request more detailed information about
+		/// the member as it is a standard PersonID.
+		/// </summary>
+		int PersonID;
+
+		/// <summary>
+		/// The name to be used when displaying the member's name in a list.
+		/// </summary>
+		string Name;
+
+		/// <summary>
+		/// Identifies if this member is active in the small group.
+		/// </summary>
+		bool Active;
+
+		/// <summary>
+		/// The name of the role of this member in the small group.
+		/// </summary>
+		string RoleName;
+
+		/// <summary>
+		/// The uniform number if the small group supports uniform numbers.
+		/// </summary>
+		int? UniformNumber;
+	}
+
+	/// <summary>
+	/// A reference object used to identify a person in a list. It provides
+	/// the basic information needed to display the person as well as the ID
+	/// number of the person for retrieving more detailed information.
+	/// </summary>
 	public struct RpcPersonReference
 	{
+		/// <summary>
+		/// Designated initializer for this structure.
+		/// </summary>
+		/// <param name="p">The Arena Person object that this reference is for.</param>
         public RpcPersonReference(Person p)
         {
             this.PersonID = p.PersonID;
             this.Name = p.FullName;
         }
 
+		/// <summary>
+		/// The ID number that identifies this person in the Arena system.
+		/// </summary>
 		public int PersonID;
+
+		/// <summary>
+		/// The name to be displayed for this person in a list.
+		/// </summary>
 		public string Name;
 	}
 
@@ -2588,7 +2675,7 @@ namespace Arena.Custom.HDC.WebService
         /// The person who is considered the leader of this small
         /// group.
         /// </summary>
-        public int? LeaderID;
+        public RpcSmallGroupMemberReference Leader;
 
         /// <summary>
         /// The ID number of the area that this small group resides
@@ -2681,6 +2768,11 @@ namespace Arena.Custom.HDC.WebService
         /// this small group.
         /// </summary>
         public int MaximumMembers;
+
+		/// <summary>
+		/// Determines whether or not this small group is private or not.
+		/// </summary>
+		public bool Private;
     }
 
     /// <summary>

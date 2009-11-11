@@ -288,11 +288,11 @@ namespace Arena.Custom.HDC.WebService
 
 		[JsonRpcMethod("GetSmallGroupMembers", Idempotent = true)]
 		[JsonRpcHelp("Get the list of people who are members of the given small group.")]
-		public int[] GetSmallGroupMembers(string authorization, int groupID)
+		public Object[] GetSmallGroupMembers(string authorization, int groupID, int startAtIndex, int numberOfMembers)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
 
-			return rpc.GetSmallGroupMembers(groupID);
+			return (Object[])JsonConverter.EncodeObject(rpc.GetSmallGroupMembers(groupID, startAtIndex, numberOfMembers));
 		}
 
 		[JsonRpcMethod("GetSmallGroupOccurrences", Idempotent = true)]
