@@ -63,8 +63,8 @@
   <ItemGroup>
     <Compile Include="CoreRpc.cs">
     </Compile>
+    <Compile Include="JSON.cs" />
     <Compile Include="JsonRpc.cs">
-      <SubType>Component</SubType>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

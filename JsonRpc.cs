@@ -6,36 +6,234 @@ using System.Web.SessionState;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using Jayrock.Json;
-using Jayrock.JsonRpc;
-using Jayrock.JsonRpc.Web;
+using Procurios.Public;
 
 
 namespace Arena.Custom.HDC.WebService
 {
-    [JsonRpcHelp("This service provides an interface into Arena via a JSON-RPC web query system.")]
-    public class JsonRpc : JsonRpcHandler, IRequiresSessionState
+	public class JsonRpcHandler : IHttpHandler
+	{
+		public void ProcessRequest(HttpContext context)
+		{
+			Hashtable response = new Hashtable();
+			Hashtable request;
+			String method;
+			Object parameters, requestID;
+			Type thisType = this.GetType();
+			ArrayList paramList = new ArrayList();
+			StringBuilder paramTypes = new StringBuilder();
+			MethodInfo methodInfo = null;
+			int i;
+
+			//
+			// Try to parse out the request information.
+			//
+			try
+			{
+				if (context.Request.Params["value"] != null)
+					request = (Hashtable)JSON.JsonDecode(context.Request.Params["value"]);
+				else
+					request = (Hashtable)JSON.JsonDecode(RequestString(context.Request));
+			}
+			catch (Exception e)
+			{
+				Hashtable error = new Hashtable();
+
+				error["code"] = -32700;
+				error["message"] = e.Message;
+				response["error"] = error;
+				context.Response.Write(JSON.JsonEncode(response));
+
+				return;
+			}
+
+			//
+			// Try to parse out the information about the request.
+			//
+			try
+			{
+				requestID = request["id"];
+				method = (String)request["method"];
+				parameters = request["params"];
+				response["id"] = requestID;
+
+				//
+				// Parse the parameters if they are ones we support.
+				//
+				if (parameters == null)
+				{
+					parameters = new ArrayList();
+				}
+				else if (parameters.GetType() == typeof(ArrayList))
+				{
+					foreach (Object param in (ArrayList)parameters)
+					{
+						paramList.Add(param.GetType());
+						paramTypes.AppendFormat("{0}, ", param.GetType().ToString());
+					}
+
+					if (paramTypes.Length > 0)
+						paramTypes.Remove(paramTypes.Length - 2, 2);
+				}
+				else
+				{
+					Hashtable error = new Hashtable();
+
+					error["code"] = -32602;
+					error["message"] = "Unsupported parameter list specified.";
+					response["error"] = error;
+					context.Response.Write(JSON.JsonEncode(response));
+
+					return;
+				}
+			}
+			catch (Exception e)
+			{
+				Hashtable error = new Hashtable();
+
+				error["code"] = -32600;
+				error["message"] = e.Message;
+				response["error"] = error;
+				context.Response.Write(JSON.JsonEncode(response));
+
+				return;
+			}
+
+			//
+			// Make an attempt to find the requested method.
+			//
+			try
+			{
+				MethodInfo[] methodList = thisType.GetMethods();
+
+				for (i = 0; i < methodList.Length; i++)
+				{
+					if (methodList[i].IsPublic == false || methodList[i].IsStatic == true)
+						continue;
+
+					if (methodList[i].Name == method && methodList[i].GetParameters().Length == paramList.Count)
+					{
+						methodInfo = methodList[i];
+						break;
+					}
+				}
+
+				if (methodInfo == null)
+					throw new Exception(String.Format("Method {0}({1}) not found.", method, paramTypes.ToString()));
+			}
+			catch (Exception e)
+			{
+				Hashtable error = new Hashtable();
+
+				error["code"] = -32601;
+				error["message"] = e.Message;
+				response["error"] = e;
+				context.Response.Write(JSON.JsonEncode(response));
+
+				return;
+			}
+
+			//
+			// Perform the actual method call.
+			//
+			try
+			{
+				Object result = null;
+				ArrayList finalParameters = new ArrayList();
+
+				for (i = 0; i < ((ArrayList)parameters).Count; i++)
+				{
+					finalParameters.Add(Convert.ChangeType(((ArrayList)parameters)[i], methodInfo.GetParameters()[i].ParameterType));
+				}
+
+				try
+				{
+					result = methodInfo.Invoke(this, (object[])finalParameters.ToArray(typeof(object)));
+				}
+				catch (Exception e)
+				{
+					throw e.InnerException;
+				}
+
+				response["result"] = result;
+			}
+			catch (Exception e)
+			{
+				Hashtable error = new Hashtable();
+
+				error["code"] = -32603;
+				error["message"] = e.Message;
+				response["error"] = error;
+				context.Response.Write(JSON.JsonEncode(response));
+
+				return;
+			}
+
+			try
+			{
+				context.Response.Write(JSON.JsonEncode(response));
+			}
+			catch
+			{
+				context.Response.Write("{\"error\": { \"code\": -32099, \"message\": \"Internal server error.\" } }");
+			}
+		}
+
+		/// <summary>
+		/// This HTTP handler is not reusable. Whatever that means.
+		/// </summary>
+		public bool IsReusable
+		{
+			get { return false; }
+		}
+
+		/// <summary>
+		/// Convert the HttpRequest's InputStream (post data) into a
+		/// String object.
+		/// </summary>
+		/// <param name="request">The request whose POST data we are intersted in.</param>
+		/// <returns>String representation of the input stream.</returns>
+		private String RequestString(HttpRequest request)
+		{
+			StringBuilder strmContents;
+			Int32 counter, strLen, strRead;
+
+			//
+			// Convert the input stream into a byte array.
+			//
+			strLen = Convert.ToInt32(request.InputStream.Length);
+			byte[] strArr = new byte[strLen];
+			strRead = request.InputStream.Read(strArr, 0, strLen);
+
+			//
+			// Convert byte array to a text string.
+			//
+			strmContents = new StringBuilder();
+			for (counter = 0; counter < strLen; counter++)
+			{
+				strmContents.AppendFormat("{0}", (char)strArr[counter]);
+			}
+
+			return strmContents.ToString();
+		}
+	}
+
+    public class JsonRpc : JsonRpcHandler
     {
         #region Anonymous (non-authenticated) methods.
 
-        [JsonRpcMethod("Version", Idempotent = false)]
-        [JsonRpcHelp("Return the version of the API in use by the server.")]
         public IDictionary Version()
         {
             return (IDictionary)JsonConverter.EncodeObject(CoreRpc.Version());
         }
 
 
-        [JsonRpcMethod("IsClientVersionSupported", Idempotent = false)]
-        [JsonRpcHelp("Returns a true/false indication of wether or not the given client version is safe to use.")]
         public bool IsClientVersionSupported(int major, int minor)
         {
             return CoreRpc.IsClientVersionSupported(major, minor);
         }
 
 
-        [JsonRpcMethod("Login", Idempotent = true)]
-        [JsonRpcHelp("Performs a login for the user's session and returns a new authorization key to be used throughout the session.")]
         public string Login(string loginID, string password)
         {
             return CoreRpc.Login(loginID, password);
@@ -46,9 +244,7 @@ namespace Arena.Custom.HDC.WebService
 
         #region Methods for working with people records.
 
-        [JsonRpcMethod("FindPeopleByName", Idempotent = true)]
-        [JsonRpcHelp("Retrieves an array of all person IDs that match the names.")]
-        public int[] FindPeople(string authorization, string firstName, string lastName)
+        public int[] FindPeopleByName(string authorization, string firstName, string lastName)
         {
             CoreRpc rpc = new CoreRpc(authorization);
 
@@ -56,9 +252,7 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("FindPeopleByPhone", Idempotent = true)]
-        [JsonRpcHelp("Retrieves an array of all person IDs that match the phone number.")]
-        public int[] FindPeople(string authorization, string phone)
+        public int[] FindPeopleByPhone(string authorization, string phone)
         {
             CoreRpc rpc = new CoreRpc(authorization);
 
@@ -66,8 +260,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("FindPeopleByEmail", Idempotent = true)]
-        [JsonRpcHelp("Retrieves an array of all person IDs that match the email address.")]
         public int[] FindPeopleByEmail(string authorization, string email)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -76,8 +268,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("FindPeople", Idempotent = true)]
-        [JsonRpcHelp("Retrieves an array of all person IDs that match the search criterea.")]
         public int[] FindPeople(string authorization, IDictionary query)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -86,8 +276,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetPersonInformation", Idempotent = true)]
-        [JsonRpcHelp("Get the basic person information for the given person ID.")]
         public IDictionary GetPersonInformation(string authorization, int personID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -96,8 +284,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetPersonContactInformation", Idempotent = true)]
-        [JsonRpcHelp("Get the contact information for the given person ID.")]
         public IDictionary GetPersonContactInformation(string authorization, int personID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -106,8 +292,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetPersonPeers", Idempotent = true)]
-        [JsonRpcHelp("Get all or some of the known peers for the given person.")]
         public IDictionary GetPersonPeers(string authorization, int personID, int start, int count)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -116,8 +300,6 @@ namespace Arena.Custom.HDC.WebService
         }
         
 
-        [JsonRpcMethod("GetPersonProfiles", Idempotent = true)]
-        [JsonRpcHelp("Get the profile IDs that the member is a part of.")]
         public IDictionary GetPersonProfiles(string authorization, int personID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -126,8 +308,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetPersonNotes", Idempotent = true)]
-        [JsonRpcHelp("Retrieve the notes that exist for a given person ID")]
         public Object[] GetPersonNotes(string authorization, int personID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -140,8 +320,6 @@ namespace Arena.Custom.HDC.WebService
 
         #region Methods for working with profile records.
 
-        [JsonRpcMethod("GetProfileInformation", Idempotent = true)]
-        [JsonRpcHelp("Get the information about the given profileID.")]
         public IDictionary GetProfileInformation(string authorization, int profileID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -150,8 +328,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetProfileMemberInformation", Idempotent = true)]
-        [JsonRpcHelp("Get the information about a person's membership in a profileID.")]
         public IDictionary GetProfileMemberInformation(string authorization, int profileID, int personID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -160,8 +336,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-		[JsonRpcMethod("GetProfileMemberActivity", Idempotent = true)]
-		[JsonRpcHelp("Get the activity information about a member's activity in a profile.")]
 		public Object[] GetProfileMemberActivity(string authorization, int profileID, int personID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -170,8 +344,6 @@ namespace Arena.Custom.HDC.WebService
 		}
 
 
-        [JsonRpcMethod("GetProfileChildren", Idempotent = true)]
-        [JsonRpcHelp("Retrieve the child profile IDs of the given profile.")]
         public int[] GetProfileChildren(string authorization, int profileID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -180,8 +352,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetProfileRoots", Idempotent = true)]
-        [JsonRpcHelp("Retrieve all the root profile ID numbers for the given profile type.")]
         public int[] GetProfileRoots(string authorization, int profileType)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -190,8 +360,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetProfileMembers", Idempotent = true)]
-        [JsonRpcHelp("Get all members of the profile.")]
         public int[] GetProfileMembers(string authorization, int profileID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -200,8 +368,6 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-        [JsonRpcMethod("GetProfileOccurrences", Idempotent = true)]
-        [JsonRpcHelp("Get all occurrences in this profile.")]
         public int[] GetProfileOccurrences(string authorization, int profileID)
         {
             CoreRpc rpc = new CoreRpc(authorization);
@@ -214,8 +380,6 @@ namespace Arena.Custom.HDC.WebService
 
 		#region Small Group Methods
 
-		[JsonRpcMethod("GetSmallGroupCategories", Idempotent = true)]
-		[JsonRpcHelp("Get all the small group categories in the system.")]
 		public int[] GetSmallGroupCategories(string authorization)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -223,8 +387,6 @@ namespace Arena.Custom.HDC.WebService
 			return rpc.GetSmallGroupCategories();
 		}
 
-		[JsonRpcMethod("GetSmallGroupCategoryInformation", Idempotent = true)]
-		[JsonRpcHelp("Get the information about small group category information.")]
 		public IDictionary GetSmallGroupCategoryInformation(string authorization, int categoryID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -232,8 +394,6 @@ namespace Arena.Custom.HDC.WebService
 			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupCategoryInformation(categoryID));
 		}
 
-		[JsonRpcMethod("GetSmallGroupRootClusters", Idempotent = true)]
-		[JsonRpcHelp("Get the clusters available at the root level of the given category.")]
 		public int[] GetSmallGroupRootClusters(string authorization, int categoryID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -241,8 +401,6 @@ namespace Arena.Custom.HDC.WebService
 			return rpc.GetSmallGroupRootClusters(categoryID);
 		}
 
-		[JsonRpcMethod("GetSmallGroupClusterTypeInformation", Idempotent = true)]
-		[JsonRpcHelp("Retrieve the information for a cluster type.")]
 		public IDictionary GetSmallGroupClusterTypeInformation(string authorization, int typeID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -250,8 +408,6 @@ namespace Arena.Custom.HDC.WebService
 			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupClusterTypeInformation(typeID));
 		}
 
-		[JsonRpcMethod("GetSmallGroupClusterInformation", Idempotent = true)]
-		[JsonRpcHelp("Retrieve the information about the specific small group cluster.")]
 		public IDictionary GetSmallGroupClusterInformation(string authorization, int clusterID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -259,8 +415,6 @@ namespace Arena.Custom.HDC.WebService
 			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupClusterInformation(clusterID));
 		}
 
-		[JsonRpcMethod("GetSmallGroupClusters", Idempotent = true)]
-		[JsonRpcHelp("Get the small group clusters that exist underneath the given cluster.")]
 		public int[] GetSmallGroupClusters(string authorization, int clusterID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -268,8 +422,6 @@ namespace Arena.Custom.HDC.WebService
 			return rpc.GetSmallGroupClusters(clusterID);
 		}
 
-		[JsonRpcMethod("GetSmallGroups", Idempotent = true)]
-		[JsonRpcHelp("Get a list of the small groups that exist underneath the given cluster.")]
 		public int[] GetSmallGroups(string authorization, int clusterID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -277,8 +429,6 @@ namespace Arena.Custom.HDC.WebService
 			return rpc.GetSmallGroups(clusterID);
 		}
 
-		[JsonRpcMethod("GetSmallGroupInformation", Idempotent = true)]
-		[JsonRpcHelp("Retrieve the information about the specified small group.")]
 		public IDictionary GetSmallGroupInformation(string authorization, int groupID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -286,8 +436,6 @@ namespace Arena.Custom.HDC.WebService
 			return (IDictionary)JsonConverter.EncodeObject(rpc.GetSmallGroupInformation(groupID));
 		}
 
-		[JsonRpcMethod("GetSmallGroupMembers", Idempotent = true)]
-		[JsonRpcHelp("Get the list of people who are members of the given small group.")]
 		public Object[] GetSmallGroupMembers(string authorization, int groupID, int startAtIndex, int numberOfMembers)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
@@ -295,8 +443,6 @@ namespace Arena.Custom.HDC.WebService
 			return (Object[])JsonConverter.EncodeObject(rpc.GetSmallGroupMembers(groupID, startAtIndex, numberOfMembers));
 		}
 
-		[JsonRpcMethod("GetSmallGroupOccurrences", Idempotent = true)]
-		[JsonRpcHelp("Get the list of occurrences of the given small group.")]
 		public int[] GetSmallGroupOccurrences(string authorization, int groupID)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
