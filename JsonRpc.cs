@@ -155,7 +155,8 @@ namespace Arena.Custom.HDC.WebService
 					throw e.InnerException;
 				}
 
-				response["result"] = result;
+				if (result != null)
+					response["result"] = result;
 			}
 			catch (Exception e)
 			{
@@ -314,6 +315,16 @@ namespace Arena.Custom.HDC.WebService
 
             return (Object[])JsonConverter.EncodeObject(rpc.GetPersonNotes(personID));
         }
+
+
+		public void UpdatePersonImage(string authorization, int personID, string imageData)
+		{
+			CoreRpc rpc = new CoreRpc(authorization);
+			byte[] data = Convert.FromBase64String(imageData);
+
+			rpc.UpdatePersonImage(personID, data);
+		}
+
 
         #endregion
 

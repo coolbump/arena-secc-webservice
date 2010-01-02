@@ -224,7 +224,8 @@ namespace Procurios.Public
 
 		protected string ParseString(char[] json, ref int index)
 		{
-			string s = "";
+//			string s = "";
+			StringBuilder s = new StringBuilder();
 			char c;
 
 			EatWhitespace(json, ref index);
@@ -250,21 +251,21 @@ namespace Procurios.Public
 					}
 					c = json[index++];
 					if (c == '"') {
-						s += '"';
+						s.Append('"');
 					} else if (c == '\\') {
-						s += '\\';
+						s.Append('\\');
 					} else if (c == '/') {
-						s += '/';
+						s.Append('/');
 					} else if (c == 'b') {
-						s += '\b';
+						s.Append('\b');
 					} else if (c == 'f') {
-						s += '\f';
+						s.Append('\f');
 					} else if (c == 'n') {
-						s += '\n';
+						s.Append('\n');
 					} else if (c == 'r') {
-						s += '\r';
+						s.Append('\r');
 					} else if (c == 't') {
-						s += '\t';
+						s.Append('\t');
 					} else if (c == 'u') {
 						int remainingLength = json.Length - index;
 						if (remainingLength >= 4) {
@@ -274,7 +275,7 @@ namespace Procurios.Public
 							// parse the 32 bit hex into an integer codepoint
 							uint codePoint = UInt32.Parse(new string(unicodeCharArray), NumberStyles.HexNumber);
 							// convert the integer codepoint to a unicode char and add to string
-							s += Char.ConvertFromUtf32((int)codePoint);
+							s.Append(Char.ConvertFromUtf32((int)codePoint));
 							// skip 4 chars
 							index += 4;
 						} else {
@@ -283,7 +284,7 @@ namespace Procurios.Public
 					}
 
 				} else {
-					s += c;
+					s.Append(c);
 				}
 
 			}
@@ -292,7 +293,7 @@ namespace Procurios.Public
 				return null;
 			}
 
-			return s;
+			return s.ToString();
 		}
 
 		protected double ParseNumber(char[] json, ref int index)

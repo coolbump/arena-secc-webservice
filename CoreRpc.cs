@@ -770,6 +770,27 @@ namespace Arena.Custom.HDC.WebService
             return (RpcNote[])array.ToArray(typeof(RpcNote));
         }
 
+		/// <summary>
+		/// Updates the image for the given person ID. The data byte-array
+		/// should be a Base64 encoded string containing the JPG data to
+		/// be stored.
+		/// </summary>
+		/// <param name="personID"></param>
+		/// <param name="data"></param>
+		public void UpdatePersonImage(int personID, byte[] data)
+		{
+			Person p = new Person(personID);
+
+			if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.Edit) == false)
+				throw new Exception("Access denied");
+
+			if (p.Blob != null)
+			{
+				p.Blob.ByteArray = data;
+				p.Blob.Save(currentLogin.LoginID);
+			}
+		}
+
         #endregion
 
         #region Methods for working with profile records.
