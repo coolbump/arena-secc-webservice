@@ -317,12 +317,12 @@ namespace Arena.Custom.HDC.WebService
         }
 
 
-		public void UpdatePersonImage(string authorization, int personID, string imageData)
+		public string UpdatePersonImage(string authorization, int personID, string imageData)
 		{
 			CoreRpc rpc = new CoreRpc(authorization);
 			byte[] data = Convert.FromBase64String(imageData);
 
-			rpc.UpdatePersonImage(personID, data);
+			return rpc.UpdatePersonImage(personID, data);
 		}
 
 

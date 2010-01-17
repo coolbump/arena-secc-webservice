@@ -777,18 +777,21 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		/// <param name="personID"></param>
 		/// <param name="data"></param>
-		public void UpdatePersonImage(int personID, byte[] data)
+		/// <returns>URL to load the person's image.</returns>
+		public string UpdatePersonImage(int personID, byte[] data)
 		{
 			Person p = new Person(personID);
 
 			if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.Edit) == false)
 				throw new Exception("Access denied");
 
-			if (p.Blob != null)
-			{
-				p.Blob.ByteArray = data;
-				p.Blob.Save(currentLogin.LoginID);
-			}
+			p.Blob.ByteArray = data;
+			p.Blob.SetFileInfo("image.jpg");
+			p.Blob.Save(currentLogin.LoginID);
+			p.Save(DefaultOrganizationID(), currentLogin.LoginID, false);
+
+			return BaseUrl() + "CachedBlob.aspx?guid=" + p.Blob.GUID;
+
 		}
 
         #endregion

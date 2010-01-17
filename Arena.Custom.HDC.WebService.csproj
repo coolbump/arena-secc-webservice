@@ -67,6 +67,7 @@
     <Compile Include="JsonRpc.cs">
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RestApi.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="jsonrpc.ashx">
