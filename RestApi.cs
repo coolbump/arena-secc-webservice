@@ -7,13 +7,61 @@ using System.Web.SessionState;
 using System.Reflection;
 using System.Linq;
 using System.Text;
+using System.IO;
+using System.Runtime.Serialization;
 
 
+//
+// If the called method has a parameter type of Stream and the method
+// type is POST or PUT then dump the raw post/put data into the parameter.
+//
+// If the return type is Stream then send it raw as the response.
+//
+// In "auto-add" mode, the method must have OperationContract attribute AND
+//	(WebGetAttribute OR WebInvokeAttribute).
+// In "auto-add" mode, the WebGetAttribute contains a UriTemplate string for
+// the URI to be used.
+// In "auto-add" mode, the WebInvokeAttribute contains a UriTemplate string
+// for the URI to be used and a Method attribute for the HTTP method to use.
+// In "auto-add" mode, the URI must be truncated at the "?", if there is one.
+//
 namespace Arena.Custom.HDC.WebService
 {
+	class RestMethodInfo
+	{
+		MethodInfo _methodInfo;
+		String _method, _uri;
+		String[] _uriElements;
+
+		public RestMethodInfo(String httpMethod, String uri, MethodInfo mi)
+		{
+			_methodInfo = mi;
+			_method = httpMethod;
+			_uri = uri;
+
+			//
+			// Bypass the first /
+			//
+			if (uri.Length == 0)
+				_uriElements = new String[0];
+			else if (uri[0] == '/')
+				_uriElements = uri.Substring(1).Split('/');
+			else
+				_uriElements = uri.Split('/');
+		}
+
+		public MethodInfo methodInfo { get { return _methodInfo; } }
+
+		public String method { get { return _method; } }
+
+		public String uri { get { return _uri; } }
+
+		public String[] uriElements { get { return _uriElements; } }
+	}
+
 	class RestApi : IHttpHandler
 	{
-		Hashtable registeredHandlers = null;
+		ArrayList registeredHandlers = null;
 
 
 		#region Handler registration code
@@ -34,11 +82,12 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterInternalHandlers()
 		{
-			RegisterHandler("/person/list", this.GetType().GetMethod("PersonList"));
-			RegisterHandler("/person/{personId}", this.GetType().GetMethod("Person"));
-			RegisterHandler("/person/{personId}/attribute/list", this.GetType().GetMethod("PersonAttributeList"));
-			RegisterHandler("/person/{personId}/note", this.GetType().GetMethod("PersonNote"));
-			RegisterHandler("/person/{personId}/note/list", this.GetType().GetMethod("PersonNoteList"));
+			RegisterHandler("GET", "/person/list", this.GetType().GetMethod("PersonList"));
+			RegisterHandler("GET", "/person/{personId}", this.GetType().GetMethod("Person"));
+			RegisterHandler("GET", "/person/{personId}/attribute/list", this.GetType().GetMethod("PersonAttributeList"));
+			RegisterHandler("GET", "/person/{personId}/note", this.GetType().GetMethod("PersonNote"));
+			RegisterHandler("GET", "/person/{personId}/note/list", this.GetType().GetMethod("PersonNoteList"));
+			RegisterHandler("GET", "/test", this.GetType().GetMethod("Test"));
 		}
 
 
@@ -56,119 +105,27 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		/// <param name="url">The URL that will be used, relative to the service.api handler.</param>
 		/// <param name="mi">The method to be invoked.</param>
-		public void RegisterHandler(String url, MethodInfo mi)
+		public void RegisterHandler(String method, String url, MethodInfo mi)
 		{
-			String[] elements;
-			String element;
-			Hashtable handlers;
-			int i;
+			RestMethodInfo rmi;
 
 			//
 			// Create the root level if it does not exist.
 			//
 			if (registeredHandlers == null)
 			{
-				registeredHandlers = new Hashtable();
-			}
-			handlers = registeredHandlers;
-
-			//
-			// Bypass the first /
-			//
-			if (url.Length == 0)
-				return;
-			if (url[0] == '/')
-				url = url.Substring(1);
-			elements = url.Split('/');
-
-			//
-			// Walk the handler list and place or build the tree
-			// as we go.
-			//
-			for (i = 0; i < elements.Length; i++)
-			{
-				element = elements[i];
-
-				if (handlers.ContainsKey(element) == false)
-				{
-					//
-					// The element does not exist at this level, create it.
-					//
-					if ((i + 1) == elements.Length)
-					{
-						//
-						// Last item, just set the method info.
-						//
-						handlers[element] = mi;
-
-						return;
-					}
-					else
-					{
-						//
-						// Create a new level.
-						//
-						handlers[element] = new Hashtable();
-						handlers = (Hashtable)handlers[element];
-
-						continue;
-					}
-				}
-				else
-				{
-					//
-					// The element exists at this level, modify it.
-					//
-					if ((i + 1) == elements.Length)
-					{
-						if (handlers[element].GetType() == typeof(Hashtable))
-						{
-							handlers = (Hashtable)handlers[element];
-							handlers[""] = mi;
-						}
-						else
-						{
-							//
-							// Last item, just set the method info.
-							//
-							handlers[element] = mi;
-						}
-
-						return;
-					}
-					else
-					{
-						//
-						// Traverse into the level.
-						//
-						if (handlers[element].GetType() == typeof(Hashtable))
-						{
-							handlers = (Hashtable)handlers[element];
-
-							continue;
-						}
-						else
-						{
-							MethodInfo tempMi;
-
-							//
-							// Convert the method into a new level.
-							//
-							tempMi = (MethodInfo)handlers[element];
-							handlers[element] = new Hashtable();
-							handlers = (Hashtable)handlers[element];
-							handlers[""] = tempMi;
-
-							continue;
-						}
-					}
-				}
+				registeredHandlers = new ArrayList();
 			}
 
 			//
-			// We are working with an existing level, just add in the method.
+			// Create the REST state method information.
 			//
-			handlers[""] = mi;
+			rmi = new RestMethodInfo(method.ToUpper(), url, mi);
+
+			//
+			// Add the new method information into the list of handlers.
+			//
+			registeredHandlers.Add(rmi);
 		}
 
 
@@ -178,19 +135,16 @@ namespace Arena.Custom.HDC.WebService
 		/// <param name="url">The URL to be traced out.</param>
 		/// <param name="parameters">Any parameters in the URL will be placed in this table.</param>
 		/// <returns>Either null or a valid MethodInfo reference to the method to be invoked.</returns>
-		MethodInfo FindHandler(String url, Hashtable parameters)
+		MethodInfo FindHandler(String method, String url, Hashtable parameters)
 		{
 			String[] elements;
-			Hashtable handlers;
-			String element;
 			int i;
 
 			if (registeredHandlers == null)
 				return null;
-			handlers = registeredHandlers;
 
 			//
-			// Bypass the first /
+			// Bypass the first / and create the elements array.
 			//
 			if (url.Length == 0)
 				return null;
@@ -198,127 +152,46 @@ namespace Arena.Custom.HDC.WebService
 				url = url.Substring(1);
 			elements = url.Split('/');
 
-			for (i = 0; i < elements.Length; i++)
+			//
+			// Loop through and look for a matching method signature.
+			//
+			foreach (RestMethodInfo rmi in registeredHandlers)
 			{
-				element = elements[i];
+				//
+				// Check the basics, correct method and right number of
+				// elements.
+				//
+				if (rmi.method.Equals(method.ToUpper()) == false || rmi.uriElements.Length != elements.Length)
+					continue;
 
-				if (handlers.ContainsKey(element) == false)
+				//
+				// We need to check each element in turn and verify it is correct.
+				//
+				for (i = 0; i < rmi.uriElements.Length; i++)
 				{
-					Boolean found = false;
+					String p = rmi.uriElements[i];
+					String v = elements[i];
 
 					//
-					// Check for {*} parameters
+					// If this is a parameter, just store it for use by the caller.
 					//
-					foreach (String p in handlers.Keys)
+					if (p.Length > 2 && p[0] == '{' && p[p.Length - 1] == '}')
 					{
-						if (p.Length > 2 && p[0] == '{' && p[p.Length - 1] == '}')
-						{
-							if (parameters != null)
-								parameters[p.Substring(1, p.Length - 2)] = element;
-							if (typeof(MethodInfo).IsInstanceOfType(handlers[p]))
-							{
-								//
-								// If this is not the right number of elements then
-								// return no match.
-								//
-								if ((i + 1) < elements.Length)
-									return null;
-
-								return (MethodInfo)handlers[p];
-							}
-
-							//
-							// Move to the next element.
-							//
-							handlers = (Hashtable)handlers[p];
-							found = true;
-							break;
-						}
+						if (parameters != null)
+							parameters[p.Substring(1, p.Length - 2)] = v;
 					}
-
-					if (found == true)
-						continue;
-
-					return null;
+					else if (p.Equals(v) == false)
+						break;
 				}
 
 				//
-				// We have the key, decide if this is the final match or not.
+				// See if we matched on all elements.
 				//
-				if (typeof(MethodInfo).IsInstanceOfType(handlers[element]))
-				{
-					//
-					// If this is not the right number of elements then
-					// return no match.
-					//
-					if ((i + 1) < elements.Length)
-						return null;
-
-					return (MethodInfo)handlers[element];
-				}
-
-				//
-				// Move to the next element.
-				//
-				handlers = (Hashtable)handlers[element];
-			}
-
-			if (handlers.ContainsKey("") == true)
-			{
-				return (MethodInfo)handlers[""];
+				if (i == rmi.uriElements.Length)
+					return rmi.methodInfo;
 			}
 
 			return null;
-		}
-		#endregion
-
-
-		#region Some Debug code
-		public String DuplicateString(String str, int count)
-		{
-			StringBuilder sb = new StringBuilder();
-			int i;
-
-			for (i = 0; i < count; i++)
-			{
-				sb.Append(str);
-			}
-
-			return sb.ToString();
-		}
-
-		public String DumpHashtable(Hashtable table, int level)
-		{
-			StringBuilder str = new StringBuilder();
-
-			str.Append("{<br />\n");
-			foreach (string key in table.Keys)
-			{
-				if (table[key].GetType() == typeof(Hashtable))
-				{
-					str.Append(DuplicateString("&nbsp;", level * 4));
-					str.Append(String.Format("{0}: {1}<br />\n", key, DumpHashtable((Hashtable)table[key], level + 1)));
-				}
-				else if (typeof(MethodInfo).IsInstanceOfType(table[key]))
-				{
-					str.Append(DuplicateString("&nbsp;", level * 4));
-					str.Append(String.Format("{0}: {1}<br />\n", key, ((MethodInfo)table[key]).Name));
-				}
-				else if (typeof(String).IsInstanceOfType(table[key]))
-				{
-					str.Append(DuplicateString("&nbsp;", level * 4));
-					str.Append(String.Format("{0}: {1}<br />\n", key, (String)table[key]));
-				}
-				else
-				{
-					str.Append(DuplicateString("&nbsp;", level * 4));
-					str.Append(String.Format("{0}: (Unknown value type {1})<br />\n", key, table[key].GetType().ToString()));
-				}
-			}
-			str.Append(DuplicateString("&nbsp;", level * 4));
-			str.Append("}");
-
-			return str.ToString();
 		}
 		#endregion
 
@@ -343,6 +216,13 @@ namespace Arena.Custom.HDC.WebService
 		public string PersonNoteList(int personId)
 		{
 			return String.Format("Got person ID {0}", personId);
+		}
+		public Stream Test()
+		{
+			byte[] buf = new byte[5];
+
+			buf[0] = (byte)'h'; buf[1] = (byte)'E'; buf[2] = (byte)'l'; buf[3] = (byte)'L'; buf[4] = (byte)'o';
+			return new MemoryStream(buf);
 		}
 		#endregion
 
@@ -371,7 +251,9 @@ namespace Arena.Custom.HDC.WebService
 			{
 				context.Response.Write(String.Format("Method {0}<br />\n", context.Request.HttpMethod));
 				context.Response.Write(String.Format("URL {0}<br />\n", context.Request.PathInfo));
-				methodInfo = FindHandler(context.Request.PathInfo, parameters);
+				methodInfo = FindHandler(context.Request.HttpMethod.ToUpper(), context.Request.PathInfo, parameters);
+				if (methodInfo == null)
+					throw new MissingMethodException();
 			}
 			catch (Exception e)
 			{
@@ -390,21 +272,22 @@ namespace Arena.Custom.HDC.WebService
 
 				foreach (ParameterInfo pi in methodInfo.GetParameters())
 				{
-					if (parameters.ContainsKey(pi.Name) == true)
+					if (typeof(Stream).IsAssignableFrom(pi.ParameterType))
 					{
-						p = parameters[pi.Name];
+						p = context.Request.InputStream;
+					}
+					else if (parameters.ContainsKey(pi.Name) == true)
+					{
+						p = Convert.ChangeType(parameters[pi.Name], pi.ParameterType);
 					}
 					else if (context.Request.QueryString.AllKeys.Contains(pi.Name) == true)
 					{
-						p = context.Request.QueryString[pi.Name];
+						p = Convert.ChangeType(context.Request.QueryString[pi.Name], pi.ParameterType);
 					}
 					else
 						p = null;
 
-					if (p != null)
-						finalParameters.Add(Convert.ChangeType(p, pi.ParameterType));
-					else
-						finalParameters.Add(null);
+					finalParameters.Add(p);
 				}
 
 				result = methodInfo.Invoke(this, (object[])finalParameters.ToArray(typeof(object)));
@@ -412,7 +295,33 @@ namespace Arena.Custom.HDC.WebService
 				try
 				{
 					if (result != null)
-						context.Response.Write(result.ToString());
+					{
+						//
+						// There is probably a better way to do this, but this is the best
+						// I can come up with. Somebody feel free to make this cleaner.
+						//
+						if (typeof(Stream).IsAssignableFrom(result.GetType()) == true)
+						{
+							Stream s = (Stream)result;
+							byte[] buf = new byte[8192];
+							int count = 8192, offset = 0;
+
+							for (offset = 0; count == 8192; offset += count)
+							{
+								int avail = (int)(s.Length - offset);
+
+								count = s.Read(buf, offset, (avail > 8192 ? 8192 : avail));
+								context.Response.BinaryWrite(buf);
+							}
+						}
+						else
+						{
+							DataContractSerializer serializer = new DataContractSerializer(result.GetType());
+
+							serializer.WriteObject(context.Response.OutputStream, result);
+						}
+					}
+
 				}
 				catch (Exception e)
 				{
