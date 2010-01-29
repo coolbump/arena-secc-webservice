@@ -2,13 +2,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.ServiceModel;
+using System.ServiceModel.Web;
+using System.Text;
 using System.Web;
 using System.Web.SessionState;
-using System.Reflection;
-using System.Linq;
-using System.Text;
-using System.IO;
-using System.Runtime.Serialization;
 
 
 //
@@ -29,12 +31,14 @@ namespace Arena.Custom.HDC.WebService
 {
 	class RestMethodInfo
 	{
+		Object _instance;
 		MethodInfo _methodInfo;
 		String _method, _uri;
 		String[] _uriElements;
 
-		public RestMethodInfo(String httpMethod, String uri, MethodInfo mi)
+		public RestMethodInfo(Object instance, String httpMethod, String uri, MethodInfo mi)
 		{
+			_instance = instance;
 			_methodInfo = mi;
 			_method = httpMethod;
 			_uri = uri;
@@ -50,6 +54,8 @@ namespace Arena.Custom.HDC.WebService
 				_uriElements = uri.Split('/');
 		}
 
+		public Object instance { get { return _instance; } }
+
 		public MethodInfo methodInfo { get { return _methodInfo; } }
 
 		public String method { get { return _method; } }
@@ -59,7 +65,43 @@ namespace Arena.Custom.HDC.WebService
 		public String[] uriElements { get { return _uriElements; } }
 	}
 
-	class RestApi : IHttpHandler
+	[DataContract]
+	public class Version
+	{
+		[DataMember]
+		public string Number { get; set; }
+	}
+
+	public class RestServiceApi
+	{
+		public void RegisterContractHandlers(RestApi api)
+		{
+			foreach (MethodInfo mi in this.GetType().GetMethods())
+			{
+				WebGetAttribute[] webgets;
+
+				webgets = (WebGetAttribute[])mi.GetCustomAttributes(typeof(WebGetAttribute), true);
+				if (webgets.Length > 0)
+				{
+					api.RegisterHandler(this, "GET", webgets[0].UriTemplate, mi);
+					continue;
+				}
+			}
+		}
+	}
+
+	public class CustomServiceApi : RestServiceApi
+	{
+		[WebGet(UriTemplate = "/version")]
+		public Version Version()
+		{
+			Version v = new Version();
+			v.Number = "1.0.2";
+			return v;
+		}
+	}
+
+	public class RestApi : IHttpHandler
 	{
 		ArrayList registeredHandlers = null;
 
@@ -78,16 +120,10 @@ namespace Arena.Custom.HDC.WebService
 
 		/// <summary>
 		/// Register all internal handlers that are a part of this
-		/// class.
+		/// assembly.
 		/// </summary>
 		void RegisterInternalHandlers()
 		{
-			RegisterHandler("GET", "/person/list", this.GetType().GetMethod("PersonList"));
-			RegisterHandler("GET", "/person/{personId}", this.GetType().GetMethod("Person"));
-			RegisterHandler("GET", "/person/{personId}/attribute/list", this.GetType().GetMethod("PersonAttributeList"));
-			RegisterHandler("GET", "/person/{personId}/note", this.GetType().GetMethod("PersonNote"));
-			RegisterHandler("GET", "/person/{personId}/note/list", this.GetType().GetMethod("PersonNoteList"));
-			RegisterHandler("GET", "/test", this.GetType().GetMethod("Test"));
 		}
 
 
@@ -97,6 +133,34 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterExternalHandlers()
 		{
+			RestServiceApi service;
+			String assemblyName, namespaceName, className;
+			Assembly asm;
+
+
+			assemblyName = "Arena.Custom.HDC.WebService";
+			namespaceName = "Arena.Custom.HDC.WebService";
+			className = "CustomServiceApi";
+
+			//
+			// Try to load the assembly for the given class.
+			//
+			asm = Assembly.Load(assemblyName);
+			//asm = this.GetType().Assembly;
+			if (asm == null)
+				throw new Exception("Cannot load assembly");
+
+			//
+			// Try to load the class that will handle API service calls.
+			//
+			service = (RestServiceApi)asm.CreateInstance(namespaceName + "." + className);
+			if (service == null)
+				throw new Exception("Cannot instantiate service");
+
+			//
+			// Initialize the API service and have it register handlers.
+			//
+			service.RegisterContractHandlers(this);
 		}
 
 
@@ -105,7 +169,7 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		/// <param name="url">The URL that will be used, relative to the service.api handler.</param>
 		/// <param name="mi">The method to be invoked.</param>
-		public void RegisterHandler(String method, String url, MethodInfo mi)
+		public void RegisterHandler(object instance, String method, String url, MethodInfo mi)
 		{
 			RestMethodInfo rmi;
 
@@ -120,7 +184,7 @@ namespace Arena.Custom.HDC.WebService
 			//
 			// Create the REST state method information.
 			//
-			rmi = new RestMethodInfo(method.ToUpper(), url, mi);
+			rmi = new RestMethodInfo(instance, method.ToUpper(), url, mi);
 
 			//
 			// Add the new method information into the list of handlers.
@@ -135,7 +199,7 @@ namespace Arena.Custom.HDC.WebService
 		/// <param name="url">The URL to be traced out.</param>
 		/// <param name="parameters">Any parameters in the URL will be placed in this table.</param>
 		/// <returns>Either null or a valid MethodInfo reference to the method to be invoked.</returns>
-		MethodInfo FindHandler(String method, String url, Hashtable parameters)
+		RestMethodInfo FindHandler(String method, String url, Hashtable parameters)
 		{
 			String[] elements;
 			int i;
@@ -188,41 +252,10 @@ namespace Arena.Custom.HDC.WebService
 				// See if we matched on all elements.
 				//
 				if (i == rmi.uriElements.Length)
-					return rmi.methodInfo;
+					return rmi;
 			}
 
 			return null;
-		}
-		#endregion
-
-
-		#region Internal method handlers
-		public void PersonList()
-		{
-		}
-		public void Person(int personId)
-		{
-		}
-		public void PersonAttributeList(int personId, String group)
-		{
-		}
-		public string PersonNote(int personId, int value, string note)
-		{
-			if (note != null)
-				return String.Format("Got person ID {0} and value {1} with note \"{2}\"", personId, value, note);
-
-			return String.Format("Got person ID {0} and value {1}", personId, value);
-		}
-		public string PersonNoteList(int personId)
-		{
-			return String.Format("Got person ID {0}", personId);
-		}
-		public Stream Test()
-		{
-			byte[] buf = new byte[5];
-
-			buf[0] = (byte)'h'; buf[1] = (byte)'E'; buf[2] = (byte)'l'; buf[3] = (byte)'L'; buf[4] = (byte)'o';
-			return new MemoryStream(buf);
 		}
 		#endregion
 
@@ -236,7 +269,7 @@ namespace Arena.Custom.HDC.WebService
 		public void ProcessRequest(HttpContext context)
 		{
 			Hashtable parameters = new Hashtable();
-			MethodInfo methodInfo = null;
+			RestMethodInfo rmi = null;
 
 
 			//
@@ -251,13 +284,13 @@ namespace Arena.Custom.HDC.WebService
 			{
 				context.Response.Write(String.Format("Method {0}<br />\n", context.Request.HttpMethod));
 				context.Response.Write(String.Format("URL {0}<br />\n", context.Request.PathInfo));
-				methodInfo = FindHandler(context.Request.HttpMethod.ToUpper(), context.Request.PathInfo, parameters);
-				if (methodInfo == null)
+				rmi = FindHandler(context.Request.HttpMethod.ToUpper(), context.Request.PathInfo, parameters);
+				if (rmi == null)
 					throw new MissingMethodException();
 			}
 			catch (Exception e)
 			{
-				context.Response.Write(String.Format("Exception occurred: {0}", e.Message));
+				context.Response.Write(String.Format("Exception occurred at init: {0}", e.Message));
 
 				return;
 			}
@@ -270,7 +303,7 @@ namespace Arena.Custom.HDC.WebService
 				Object result = null, p;
 				ArrayList finalParameters = new ArrayList();
 
-				foreach (ParameterInfo pi in methodInfo.GetParameters())
+				foreach (ParameterInfo pi in rmi.methodInfo.GetParameters())
 				{
 					if (typeof(Stream).IsAssignableFrom(pi.ParameterType))
 					{
@@ -290,7 +323,7 @@ namespace Arena.Custom.HDC.WebService
 					finalParameters.Add(p);
 				}
 
-				result = methodInfo.Invoke(this, (object[])finalParameters.ToArray(typeof(object)));
+				result = rmi.methodInfo.Invoke(rmi.instance, (object[])finalParameters.ToArray(typeof(object)));
 
 				try
 				{
@@ -321,7 +354,6 @@ namespace Arena.Custom.HDC.WebService
 							serializer.WriteObject(context.Response.OutputStream, result);
 						}
 					}
-
 				}
 				catch (Exception e)
 				{
@@ -330,7 +362,7 @@ namespace Arena.Custom.HDC.WebService
 			}
 			catch (Exception e)
 			{
-				context.Response.Write(String.Format("Exception occurred: {0}", e.Message));
+				context.Response.Write(String.Format("Exception occurred at run: {0}", e.Message));
 
 				return;
 			}
