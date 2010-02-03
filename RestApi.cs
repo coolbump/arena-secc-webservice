@@ -7,10 +7,12 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.ServiceModel;
+using System.ServiceModel.Channels;
 using System.ServiceModel.Web;
 using System.Text;
 using System.Web;
 using System.Web.SessionState;
+using System.Xml;
 
 
 //
@@ -74,19 +76,8 @@ namespace Arena.Custom.HDC.WebService
 
 	public class RestServiceApi
 	{
-		public void RegisterContractHandlers(RestApi api)
+		public void RegisterHandlers(String baseUrl, RestApi api)
 		{
-			foreach (MethodInfo mi in this.GetType().GetMethods())
-			{
-				WebGetAttribute[] webgets;
-
-				webgets = (WebGetAttribute[])mi.GetCustomAttributes(typeof(WebGetAttribute), true);
-				if (webgets.Length > 0)
-				{
-					api.RegisterHandler(this, "GET", webgets[0].UriTemplate, mi);
-					continue;
-				}
-			}
 		}
 	}
 
@@ -98,6 +89,34 @@ namespace Arena.Custom.HDC.WebService
 			Version v = new Version();
 			v.Number = "1.0.2";
 			return v;
+		}
+		[WebGet(UriTemplate = "/fault")]
+		public RestErrorMessage Fault()
+		{
+			return new RestErrorMessage();
+		}
+	}
+
+	public class RestErrorMessage : Message
+	{
+		protected override void OnWriteBodyContents(System.Xml.XmlDictionaryWriter writer)
+		{
+			writer.WriteStartElement("Error");
+			writer.WriteElementString("StatusCode", "400");
+			writer.WriteElementString("Message", "Some error occurred");
+			writer.WriteEndElement();
+		}
+		public override MessageHeaders Headers
+		{
+			get { return new MessageHeaders(MessageVersion.None); }
+		}
+		public override MessageProperties Properties
+		{
+			get { return new MessageProperties(); }
+		}
+		public override MessageVersion Version
+		{
+			get { return MessageVersion.None; }
 		}
 	}
 
@@ -133,34 +152,63 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterExternalHandlers()
 		{
-			RestServiceApi service;
 			String assemblyName, namespaceName, className;
-			Assembly asm;
 
 
 			assemblyName = "Arena.Custom.HDC.WebService";
 			namespaceName = "Arena.Custom.HDC.WebService";
 			className = "CustomServiceApi";
 
+			RegisterExternalClass("/", assemblyName, namespaceName, className);
+		}
+
+
+		/// <summary>
+		/// Register the specified class given its assembly name (dll), namespace and
+		/// class name. A new instance of that class is created and registered into the
+		/// base url.
+		/// </summary>
+		/// <param name="baseUrl">The base url to use when registering this object.</param>
+		/// <param name="assemblyName">The assembly (dll) name to load the class from.</param>
+		/// <param name="namespaceName">The namespace that the class is a part of.</param>
+		/// <param name="className">The name of the class to create an instance of.</param>
+		void RegisterExternalClass(string baseUrl, String assemblyName, string namespaceName, string className)
+		{
+			Object instance;
+			RestServiceApi service;
+			Assembly asm;
+
+	
 			//
 			// Try to load the assembly for the given class.
 			//
 			asm = Assembly.Load(assemblyName);
-			//asm = this.GetType().Assembly;
 			if (asm == null)
 				throw new Exception("Cannot load assembly");
 
 			//
 			// Try to load the class that will handle API service calls.
 			//
-			service = (RestServiceApi)asm.CreateInstance(namespaceName + "." + className);
-			if (service == null)
+			instance = asm.CreateInstance(namespaceName + "." + className);
+			if (instance == null)
 				throw new Exception("Cannot instantiate service");
 
 			//
-			// Initialize the API service and have it register handlers.
+			// If this object is a subclass of the RestServiceApi then call
+			// the standard registration handler method which allows a subclass
+			// to do any custom registration it needs to.
 			//
-			service.RegisterContractHandlers(this);
+			if (typeof(RestServiceApi).IsAssignableFrom(instance.GetType()) == true)
+			{
+				service = (RestServiceApi)instance;
+
+				//
+				// Initialize the API service and have it register handlers.
+				//
+				service.RegisterHandlers(baseUrl, this);
+			}
+
+			RegisterObjectContractHandlers(baseUrl, instance);
 		}
 
 
@@ -190,6 +238,63 @@ namespace Arena.Custom.HDC.WebService
 			// Add the new method information into the list of handlers.
 			//
 			registeredHandlers.Add(rmi);
+		}
+
+
+		/// <summary>
+		/// Look for any WCF style methods that contain a WebGet or WebInvoke
+		/// attribute. On any found methods, register the method as a url
+		/// handler for that instance.
+		/// </summary>
+		/// <param name="baseUrl">The base URL to use when registering methods for this instance, pass an empty string for no base url.</param>
+		/// <param name="instance">The object whose methods will be registered into the URL handlers.</param>
+		public void RegisterObjectContractHandlers(String baseUrl, object instance)
+		{
+			//
+			// Strip any trailing "/" character.
+			//
+			if (baseUrl[baseUrl.Length - 1] == '/')
+				baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
+
+			foreach (MethodInfo mi in instance.GetType().GetMethods())
+			{
+				WebGetAttribute[] webgets;
+				WebInvokeAttribute[] webinvokes;
+				String url;
+
+				//
+				// Get any "WebGet" attributes for this method.
+				//
+				webgets = (WebGetAttribute[])mi.GetCustomAttributes(typeof(WebGetAttribute), true);
+				if (webgets.Length > 0)
+				{
+					url = webgets[0].UriTemplate;
+					if (url.Length > 0 && url[0] == '/')
+						url = baseUrl + url;
+					else
+						url = baseUrl + "/" + url;
+
+					RegisterHandler(instance, "GET", url, mi);
+					continue;
+				}
+
+				//
+				// Get any "WebInvoke" attributes for this method.
+				//
+				webinvokes = (WebInvokeAttribute[])mi.GetCustomAttributes(typeof(WebInvokeAttribute), true);
+				if (webinvokes.Length > 0)
+				{
+					url = webgets[0].UriTemplate;
+					if (url.Length > 0 && url[0] == '/')
+						url = baseUrl + url;
+					else
+						url = baseUrl + "/" + url;
+
+					RegisterHandler(instance, webinvokes[0].Method, url, mi);
+
+					continue;
+				}
+			}
 		}
 
 
@@ -282,8 +387,6 @@ namespace Arena.Custom.HDC.WebService
 			//
 			try
 			{
-				context.Response.Write(String.Format("Method {0}<br />\n", context.Request.HttpMethod));
-				context.Response.Write(String.Format("URL {0}<br />\n", context.Request.PathInfo));
 				rmi = FindHandler(context.Request.HttpMethod.ToUpper(), context.Request.PathInfo, parameters);
 				if (rmi == null)
 					throw new MissingMethodException();
@@ -346,6 +449,16 @@ namespace Arena.Custom.HDC.WebService
 								count = s.Read(buf, offset, (avail > 8192 ? 8192 : avail));
 								context.Response.BinaryWrite(buf);
 							}
+						}
+						else if (typeof(Message).IsAssignableFrom(result.GetType()) == true)
+						{
+							Message msg = (Message)result;
+							StringBuilder sb = new StringBuilder();
+							StringWriter sw = new StringWriter(sb);
+							XmlTextWriter xtw = new XmlTextWriter(sw);
+
+							msg.WriteMessage(xtw);
+							context.Response.Write(sb.ToString());
 						}
 						else
 						{
