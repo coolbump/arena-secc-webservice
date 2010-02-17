@@ -82,22 +82,25 @@ namespace Arena.Custom.HDC.WebService
             //
             currentLogin = new Login(reader["login_id"].ToString());
 
-            //
-            // Update the authorization
-            //
-            paramList = new ArrayList();
-            paramList.Add(new SqlParameter("AuthorizationId", Convert.ToInt32(reader["authorization_id"])));
-            paramList.Add(new SqlParameter("LoginId", reader["login_id"].ToString()));
-            paramList.Add(new SqlParameter("Temporary", Convert.ToInt32("0")));
-            paramList.Add(new SqlParameter("Expires", DateTime.Now.AddHours(1)));
-            reader.Close();
-            paramOut.ParameterName = "@ID";
-            paramOut.Direction = ParameterDirection.Output;
-            paramOut.SqlDbType = SqlDbType.Int;
-            paramList.Add(paramOut);
-            reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
-                        "cust_hdc_webservice_sp_save_authorization", paramList);
-            reader.Close();
+			if (Convert.ToBoolean(reader["temporary"]) == true)
+			{
+				//
+				// Update the authorization
+				//
+				paramList = new ArrayList();
+				paramList.Add(new SqlParameter("AuthorizationId", Convert.ToInt32(reader["authorization_id"])));
+				paramList.Add(new SqlParameter("LoginId", reader["login_id"].ToString()));
+				paramList.Add(new SqlParameter("Temporary", Convert.ToInt32(reader["temporary"].ToString())));
+				paramList.Add(new SqlParameter("Expires", DateTime.Now.AddHours(1)));
+				reader.Close();
+				paramOut.ParameterName = "@ID";
+				paramOut.Direction = ParameterDirection.Output;
+				paramOut.SqlDbType = SqlDbType.Int;
+				paramList.Add(paramOut);
+				reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
+							"cust_hdc_webservice_sp_save_authorization", paramList);
+				reader.Close();
+			}
         }
 
         #region Anonymous (non-authenticated) methods.
@@ -261,7 +264,6 @@ namespace Arena.Custom.HDC.WebService
             // Find all the people matching the query.
             //
             people = new PersonCollection();
-            personIDs = new ArrayList(people.Count);
             if (query.FirstName != null && query.LastName != null)
                 people.LoadByName(query.FirstName, query.LastName);
             else if (query.Email != null)
@@ -281,6 +283,7 @@ namespace Arena.Custom.HDC.WebService
                 //
                 // Walk the reader and add all the results.
                 //
+				personIDs = new ArrayList();
                 while (reader.Read())
                 {
                     personIDs.Add(reader[0]);
@@ -290,11 +293,12 @@ namespace Arena.Custom.HDC.WebService
 
                 return (int[])personIDs.ToArray(typeof(int));
             }
-
+			
             //
             // Build the array of person IDs.
             //
-            for (i = 0; i < people.Count; i++)
+			personIDs = new ArrayList(people.Count);
+			for (i = 0; i < people.Count; i++)
             {
                 personIDs.Add(people[i].PersonID);
             }

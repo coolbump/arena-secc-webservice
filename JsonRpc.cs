@@ -163,7 +163,10 @@ namespace Arena.Custom.HDC.WebService
 				Hashtable error = new Hashtable();
 
 				error["code"] = -32603;
-				error["message"] = e.Message;
+				if (e.InnerException != null)
+					error["message"] = e.InnerException.Message + e.InnerException.StackTrace;
+				else
+					error["message"] = e.Message + e.StackTrace;
 				response["error"] = error;
 				context.Response.Write(JSON.JsonEncode(response));
 

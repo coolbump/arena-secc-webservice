@@ -31,20 +31,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Arena.Framework, Version=2008.3.100.36613, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Arena.Framework, Version=2009.2.100.1401, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Arena ChMS\Arena\bin\Arena.Framework.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Arena ChMS\Arena\bin\Arena.Framework.dll</HintPath>
     </Reference>
-    <Reference Include="Jayrock, Version=0.9.8316.0, Culture=neutral">
+    <Reference Include="Arena.Services, Version=2009.2.100.1401, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Arena ChMS\Arena\bin\Jayrock.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Jayrock.Json, Version=0.9.8316.0, Culture=neutral">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Arena ChMS\Arena\bin\Jayrock.Json.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Arena ChMS\Arena\bin\Arena.Services.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
@@ -76,7 +69,9 @@
     <Compile Include="JsonRpc.cs">
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RestApi.cs" />
+    <Compile Include="RestApi.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="jsonrpc.ashx">
