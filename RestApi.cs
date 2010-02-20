@@ -13,58 +13,50 @@ using System.Text;
 using System.Web;
 using System.Web.SessionState;
 using System.Xml;
+using System.Xml.Serialization;
+using Arena.Core;
+using Arena.Services;
+using Arena.Services.Behaviors.ErrorHandling;
+using Arena.Services.Exceptions;
 
 
-//
-// If the called method has a parameter type of Stream and the method
-// type is POST or PUT then dump the raw post/put data into the parameter.
-//
-// If the return type is Stream then send it raw as the response.
-//
-// In "auto-add" mode, the method must have OperationContract attribute AND
-//	(WebGetAttribute OR WebInvokeAttribute).
-// In "auto-add" mode, the WebGetAttribute contains a UriTemplate string for
-// the URI to be used.
-// In "auto-add" mode, the WebInvokeAttribute contains a UriTemplate string
-// for the URI to be used and a Method attribute for the HTTP method to use.
-// In "auto-add" mode, the URI must be truncated at the "?", if there is one.
-//
 namespace Arena.Custom.HDC.WebService
 {
+	/// <summary>
+	/// Provides all the information needed to find and call a method that
+	/// has been registered in the API system.
+	/// </summary>
 	class RestMethodInfo
 	{
 		Object _instance;
 		MethodInfo _methodInfo;
-		String _method, _uri;
-		String[] _uriElements;
+		UriTemplate _uriTemplate;
+		String _method;
 
 		public RestMethodInfo(Object instance, String httpMethod, String uri, MethodInfo mi)
 		{
 			_instance = instance;
 			_methodInfo = mi;
 			_method = httpMethod;
-			_uri = uri;
-
-			//
-			// Bypass the first /
-			//
-			if (uri.Length == 0)
-				_uriElements = new String[0];
-			else if (uri[0] == '/')
-				_uriElements = uri.Substring(1).Split('/');
-			else
-				_uriElements = uri.Split('/');
+			_uriTemplate = new UriTemplate(uri);
 		}
 
 		public Object instance { get { return _instance; } }
 
 		public MethodInfo methodInfo { get { return _methodInfo; } }
 
+		public UriTemplate uriTemplate { get { return _uriTemplate; } }
+
 		public String method { get { return _method; } }
+	}
 
-		public String uri { get { return _uri; } }
-
-		public String[] uriElements { get { return _uriElements; } }
+	/// <summary>
+	/// When this attribute is applied to a WebGet or WebInvoke enabled
+	/// it becomes an anonymous and does not require authentication to
+	/// be called.
+	/// </summary>
+	public class RestApiAnonymous : System.Attribute
+	{
 	}
 
 	[DataContract]
@@ -84,6 +76,7 @@ namespace Arena.Custom.HDC.WebService
 	public class CustomServiceApi : RestServiceApi
 	{
 		[WebGet(UriTemplate = "/version")]
+		[RestApiAnonymous]
 		public Version Version()
 		{
 			Version v = new Version();
@@ -91,38 +84,28 @@ namespace Arena.Custom.HDC.WebService
 			return v;
 		}
 		[WebGet(UriTemplate = "/fault")]
-		public RestErrorMessage Fault()
+		[RestApiAnonymous]
+		public void Fault()
 		{
-			return new RestErrorMessage();
+			throw new Exception("This is an exception");
 		}
 	}
 
-	public class RestErrorMessage : Message
+	/// <summary>
+	/// The NoOp interface is a junk interface, it does nothing except
+	/// provide a means for creating an OperationContract.
+	/// </summary>
+	[ServiceContract]
+	interface NoOp
 	{
-		protected override void OnWriteBodyContents(System.Xml.XmlDictionaryWriter writer)
-		{
-			writer.WriteStartElement("Error");
-			writer.WriteElementString("StatusCode", "400");
-			writer.WriteElementString("Message", "Some error occurred");
-			writer.WriteEndElement();
-		}
-		public override MessageHeaders Headers
-		{
-			get { return new MessageHeaders(MessageVersion.None); }
-		}
-		public override MessageProperties Properties
-		{
-			get { return new MessageProperties(); }
-		}
-		public override MessageVersion Version
-		{
-			get { return MessageVersion.None; }
-		}
+		[OperationContract]
+		void NoOp();
 	}
 
 	public class RestApi : IHttpHandler
 	{
 		ArrayList registeredHandlers = null;
+		StringBuilder initLog = new StringBuilder();
 
 
 		#region Handler registration code
@@ -143,6 +126,40 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterInternalHandlers()
 		{
+			RegisterObjectContractHandlers("/", this, this.GetType());
+
+			CoreRpc rpc = new CoreRpc("00000000-0000-0000-0000-000000000000");
+			RegisterHandler(rpc, "GET", "/contact", rpc.GetType().GetMethod("GetPersonContactInformation"));
+			RegisterHandler(rpc, "GET", "/roots?profileType={profileType}", rpc.GetType().GetMethod("GetProfileRoots"));
+		}
+
+		/// <summary>
+		/// Ths is a debug method that provides information about what is
+		/// registered and the registration log.
+		/// </summary>
+		/// <param name="showLog"></param>
+		/// <returns></returns>
+		[WebGet(UriTemplate = "/info?showLog={showLog}")]
+		[RestApiAnonymous()]
+		public Stream Info(int showLog)
+		{
+			StringBuilder sb = new StringBuilder();
+
+			HttpContext.Current.Response.ContentType = "text/plain";
+			foreach (RestMethodInfo rmi in registeredHandlers)
+			{
+				sb.AppendLine(rmi.uriTemplate.ToString());
+			}
+			sb.AppendLine("");
+
+			if (showLog == 1)
+			{
+				sb.AppendLine("Log:");
+				sb.AppendLine(initLog.ToString());
+				sb.AppendLine("");
+			}
+
+			return new MemoryStream(ASCIIEncoding.Default.GetBytes(sb.ToString()));
 		}
 
 
@@ -160,6 +177,8 @@ namespace Arena.Custom.HDC.WebService
 			className = "CustomServiceApi";
 
 			RegisterExternalClass("/", assemblyName, namespaceName, className);
+
+			RegisterExternalClass("/core", "Arena.Services", "Arena.Services", "ArenaAPI");
 		}
 
 
@@ -192,6 +211,22 @@ namespace Arena.Custom.HDC.WebService
 			instance = asm.CreateInstance(namespaceName + "." + className);
 			if (instance == null)
 				throw new Exception("Cannot instantiate service");
+			Type t = asm.GetType(namespaceName + "." + className);
+			if (t == null)
+				throw new Exception("Frank did it");
+			while (t != null)
+			{
+				initLog.AppendLine("Checking type " + t.ToString());
+				foreach (MethodInfo mi in t.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy))
+				{
+					initLog.AppendLine(mi.Name);
+					foreach (Object o in System.Attribute.GetCustomAttributes(mi, true))
+					{
+						initLog.AppendLine(mi.Name + "[" + o.ToString() + "]");
+					}
+				}
+				t = t.BaseType;
+			}
 
 			//
 			// If this object is a subclass of the RestServiceApi then call
@@ -208,7 +243,7 @@ namespace Arena.Custom.HDC.WebService
 				service.RegisterHandlers(baseUrl, this);
 			}
 
-			RegisterObjectContractHandlers(baseUrl, instance);
+			RegisterObjectContractHandlers(baseUrl, instance, instance.GetType());
 		}
 
 
@@ -248,24 +283,33 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		/// <param name="baseUrl">The base URL to use when registering methods for this instance, pass an empty string for no base url.</param>
 		/// <param name="instance">The object whose methods will be registered into the URL handlers.</param>
-		public void RegisterObjectContractHandlers(String baseUrl, object instance)
+		public void RegisterObjectContractHandlers(String baseUrl, object instance, Type objectType)
 		{
 			//
 			// Strip any trailing "/" character.
 			//
-			if (baseUrl[baseUrl.Length - 1] == '/')
+			if (baseUrl.Length > 0 && baseUrl[baseUrl.Length - 1] == '/')
 				baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
 
-			foreach (MethodInfo mi in instance.GetType().GetMethods())
+			foreach (MethodInfo mi in objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy))
 			{
+				Object[] attribs;
 				WebGetAttribute[] webgets;
 				WebInvokeAttribute[] webinvokes;
 				String url;
 
+				initLog.AppendLine("Checking method " + mi.Name);
 				//
 				// Get any "WebGet" attributes for this method.
 				//
+				attribs = (Object[])mi.GetCustomAttributes(false);
+				foreach (Object attr in attribs)
+				{
+					initLog.AppendLine("  Found attribute " + attr.ToString());
+				}
+
 				webgets = (WebGetAttribute[])mi.GetCustomAttributes(typeof(WebGetAttribute), true);
+				initLog.AppendLine("  Found " + webgets.Length.ToString() + " get attributes");
 				if (webgets.Length > 0)
 				{
 					url = webgets[0].UriTemplate;
@@ -284,7 +328,7 @@ namespace Arena.Custom.HDC.WebService
 				webinvokes = (WebInvokeAttribute[])mi.GetCustomAttributes(typeof(WebInvokeAttribute), true);
 				if (webinvokes.Length > 0)
 				{
-					url = webgets[0].UriTemplate;
+					url = webinvokes[0].UriTemplate;
 					if (url.Length > 0 && url[0] == '/')
 						url = baseUrl + url;
 					else
@@ -295,31 +339,25 @@ namespace Arena.Custom.HDC.WebService
 					continue;
 				}
 			}
+
+			foreach (Type t in objectType.GetInterfaces())
+			{
+				RegisterObjectContractHandlers(baseUrl, instance, t);
+			}
 		}
 
 
 		/// <summary>
 		/// Given the URL, find the associated method handler.
 		/// </summary>
-		/// <param name="url">The URL to be traced out.</param>
-		/// <param name="parameters">Any parameters in the URL will be placed in this table.</param>
+		/// <param name="baseUrl">The base URL of the web service handler.</param>
+		/// <param name="url">The relative URL of the web service for the specific request.</param>
+		/// <param name="match">The UriTemplateMatch object that contains information about the UriTemplate that was matched.</param>
 		/// <returns>Either null or a valid MethodInfo reference to the method to be invoked.</returns>
-		RestMethodInfo FindHandler(String method, String url, Hashtable parameters)
+		RestMethodInfo FindHandler(String method, Uri baseUrl, Uri url, ref UriTemplateMatch match)
 		{
-			String[] elements;
-			int i;
-
 			if (registeredHandlers == null)
 				return null;
-
-			//
-			// Bypass the first / and create the elements array.
-			//
-			if (url.Length == 0)
-				return null;
-			if (url[0] == '/')
-				url = url.Substring(1);
-			elements = url.Split('/');
 
 			//
 			// Loop through and look for a matching method signature.
@@ -327,36 +365,15 @@ namespace Arena.Custom.HDC.WebService
 			foreach (RestMethodInfo rmi in registeredHandlers)
 			{
 				//
-				// Check the basics, correct method and right number of
-				// elements.
+				// Ensure the proper method is in use.
 				//
-				if (rmi.method.Equals(method.ToUpper()) == false || rmi.uriElements.Length != elements.Length)
+				if (rmi.method.ToUpper() != method.ToUpper())
 					continue;
 
 				//
-				// We need to check each element in turn and verify it is correct.
+				// See if there is a match on the URI.
 				//
-				for (i = 0; i < rmi.uriElements.Length; i++)
-				{
-					String p = rmi.uriElements[i];
-					String v = elements[i];
-
-					//
-					// If this is a parameter, just store it for use by the caller.
-					//
-					if (p.Length > 2 && p[0] == '{' && p[p.Length - 1] == '}')
-					{
-						if (parameters != null)
-							parameters[p.Substring(1, p.Length - 2)] = v;
-					}
-					else if (p.Equals(v) == false)
-						break;
-				}
-
-				//
-				// See if we matched on all elements.
-				//
-				if (i == rmi.uriElements.Length)
+				if ((match = rmi.uriTemplate.Match(baseUrl, url)) != null)
 					return rmi;
 			}
 
@@ -373,112 +390,236 @@ namespace Arena.Custom.HDC.WebService
 		/// <param name="context">The context of this single web request.</param>
 		public void ProcessRequest(HttpContext context)
 		{
-			Hashtable parameters = new Hashtable();
+			UriTemplateMatch templateMatch = null;
 			RestMethodInfo rmi = null;
+			ArrayList finalParameters = null;
+			Object result = null, p;
 
 
 			//
-			// Register all handlers.
-			//
-			RegisterHandlers();
-
-			//
-			// Try to parse out the request information.
+			// Initialization phase, register all handlers and then find a match.
 			//
 			try
 			{
-				rmi = FindHandler(context.Request.HttpMethod.ToUpper(), context.Request.PathInfo, parameters);
+				//
+				// Register all handlers.
+				//
+				RegisterHandlers();
+
+				String baseUrl = context.Request.Url.Scheme + "://" + context.Request.Url.Authority + context.Request.FilePath;
+				rmi = FindHandler(context.Request.HttpMethod.ToUpper(), new Uri(baseUrl), context.Request.Url, ref templateMatch);
 				if (rmi == null)
 					throw new MissingMethodException();
 			}
 			catch (Exception e)
 			{
-				context.Response.Write(String.Format("Exception occurred at init: {0}", e.Message));
+				context.Response.Write(String.Format("Exception occurred at init: {0}", e.Message + e.StackTrace));
 
 				return;
 			}
 
 			//
-			// Perform the actual method call.
+			// Parse out any parameters for the method call.
 			//
 			try
 			{
-				Object result = null, p;
-				ArrayList finalParameters = new ArrayList();
+				finalParameters = new ArrayList();
 
+				//
+				// Walk each parameter in the method and see if we can convert
+				// one of the query variables to the proper type.
+				//
 				foreach (ParameterInfo pi in rmi.methodInfo.GetParameters())
 				{
 					if (typeof(Stream).IsAssignableFrom(pi.ParameterType))
 					{
 						p = context.Request.InputStream;
 					}
-					else if (parameters.ContainsKey(pi.Name) == true)
+					else if (templateMatch.BoundVariables.AllKeys.Contains(pi.Name.ToUpper()) == true)
 					{
-						p = Convert.ChangeType(parameters[pi.Name], pi.ParameterType);
-					}
-					else if (context.Request.QueryString.AllKeys.Contains(pi.Name) == true)
-					{
-						p = Convert.ChangeType(context.Request.QueryString[pi.Name], pi.ParameterType);
+						p = Convert.ChangeType(templateMatch.BoundVariables[pi.Name.ToUpper()], pi.ParameterType);
 					}
 					else
 						p = null;
 
 					finalParameters.Add(p);
 				}
+			}
+			catch (Exception e)
+			{
+				context.Response.Write(String.Format("Exception occurred at parameter parse: {0} at {1}", e.Message, e.StackTrace));
 
-				result = rmi.methodInfo.Invoke(rmi.instance, (object[])finalParameters.ToArray(typeof(object)));
+				return;
+			}
 
-				try
+			//
+			// Force the context to be anonymous, then authenticate if the user
+			// is calling a non-anonymous method.
+			//
+			try
+			{
+				ArenaContext.Current.SetWebServiceProperties(ArenaContext.Current.CreatePrincipal(""), new Arena.Core.Person());
+				if (rmi.uriTemplate.ToString() != "/core/version" &&
+					rmi.uriTemplate.ToString() != "/core/login" &&
+					rmi.uriTemplate.ToString() != "/core/help" &&
+					rmi.methodInfo.GetCustomAttributes(typeof(RestApiAnonymous), true).Length == 0)
 				{
-					if (result != null)
-					{
-						//
-						// There is probably a better way to do this, but this is the best
-						// I can come up with. Somebody feel free to make this cleaner.
-						//
-						if (typeof(Stream).IsAssignableFrom(result.GetType()) == true)
-						{
-							Stream s = (Stream)result;
-							byte[] buf = new byte[8192];
-							int count = 8192, offset = 0;
+					String PathAndQuery = context.Request.RawUrl;
 
-							for (offset = 0; count == 8192; offset += count)
-							{
-								int avail = (int)(s.Length - offset);
-
-								count = s.Read(buf, offset, (avail > 8192 ? 8192 : avail));
-								context.Response.BinaryWrite(buf);
-							}
-						}
-						else if (typeof(Message).IsAssignableFrom(result.GetType()) == true)
-						{
-							Message msg = (Message)result;
-							StringBuilder sb = new StringBuilder();
-							StringWriter sw = new StringWriter(sb);
-							XmlTextWriter xtw = new XmlTextWriter(sw);
-
-							msg.WriteMessage(xtw);
-							context.Response.Write(sb.ToString());
-						}
-						else
-						{
-							DataContractSerializer serializer = new DataContractSerializer(result.GetType());
-
-							serializer.WriteObject(context.Response.OutputStream, result);
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					context.Response.Write(String.Format("Exception sending response: {0}", e.Message));
+					PathAndQuery = context.Request.RawUrl.Substring(context.Request.FilePath.Length + 1);
+					AuthenticationManager.SetupSessionForRequest(context.Request.QueryString["api_session"], false);
+					AuthenticationManager.VerifySignature(context.Request.Url, PathAndQuery, context.Request.QueryString["api_session"]);
 				}
 			}
 			catch (Exception e)
 			{
-				context.Response.Write(String.Format("Exception occurred at run: {0}", e.Message));
+				RESTException restEx = e as RESTException;
+
+				if (restEx != null)
+				{
+					result = new RestErrorMessage(restEx);
+				}
+				else
+				{
+					result = new RestErrorMessage(System.Net.HttpStatusCode.InternalServerError, e.ToString(), string.Empty);
+				}
+			}
+
+			//
+			// Perform the actual method call.
+			//
+			if (result == null)
+			{
+				try
+				{
+					//
+					// Set some default response information.
+					//
+					context.Response.ContentType = "application/xml; charset=utf-8";
+
+					if (TypeIsServiceContract(rmi.instance.GetType()) == true)
+					{
+						//
+						// Run the request inside of a operation context so response information
+						// can be set. This is a bit of a cheat, but it works.
+						//
+						WebChannelFactory<NoOp> factory = new WebChannelFactory<NoOp>(new Uri("http://localhost/"));
+						NoOp channel = factory.CreateChannel();
+						using (new OperationContextScope((IContextChannel)channel))
+						{
+							result = rmi.methodInfo.Invoke(rmi.instance, (object[])finalParameters.ToArray(typeof(object)));
+							if (WebOperationContext.Current.OutgoingResponse.ContentType != null)
+								context.Response.ContentType = WebOperationContext.Current.OutgoingResponse.ContentType;
+						}
+					}
+					else
+					{
+						//
+						// This is a standard method call, just call it.
+						//
+						result = rmi.methodInfo.Invoke(rmi.instance, (object[])finalParameters.ToArray(typeof(object)));
+					}
+				}
+				catch (Exception e)
+				{
+					RESTException restEx;
+
+					if (e.InnerException != null)
+						e = e.InnerException;
+
+					restEx = e as RESTException;
+					if (restEx != null)
+					{
+						result = new RestErrorMessage(restEx);
+					}
+					else
+					{
+						result = new RestErrorMessage(System.Net.HttpStatusCode.InternalServerError, e.ToString(), string.Empty);
+					}
+				}
+			}
+
+			//
+			// Deal with the response that was generated.
+			//
+			try
+			{
+				if (result != null)
+				{
+					//
+					// There is probably a better way to do this, but this is the best
+					// I can come up with. Somebody feel free to make this cleaner.
+					//
+					if (typeof(Stream).IsAssignableFrom(result.GetType()) == true)
+					{
+						Stream s = (Stream)result;
+						byte[] buf = new byte[8192];
+						int count = 8192, offset = 0;
+
+						//
+						// Response is a data stream, just copy it to the response
+						// stream.
+						//
+						for (offset = 0; count == 8192; offset += count)
+						{
+							int avail = (int)(s.Length - offset);
+
+							count = s.Read(buf, offset, (avail > 8192 ? 8192 : avail));
+							context.Response.BinaryWrite(buf);
+						}
+					}
+					else if (typeof(Message).IsAssignableFrom(result.GetType()) == true)
+					{
+						Message msg = (Message)result;
+						StringBuilder sb = new StringBuilder();
+						StringWriter sw = new StringWriter(sb);
+						XmlTextWriter xtw = new XmlTextWriter(sw);
+
+						//
+						// Response is a Message object. Write it out as an XML
+						// stream.
+						//
+						msg.WriteMessage(xtw);
+						context.Response.Write(sb.ToString());
+					}
+					else
+					{
+						DataContractSerializer serializer = new DataContractSerializer(result.GetType());
+
+						//
+						// Otherwise, use the DataContractSerializer to convert the object into
+						// an XML stream.
+						//
+						serializer.WriteObject(context.Response.OutputStream, result);
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				context.Response.Write(String.Format("Exception sending response: {0}", e.Message));
 
 				return;
 			}
+		}
+
+		/// <summary>
+		/// Check the object type and any interfaces to see if it has any
+		/// ServiceContract attributes.
+		/// </summary>
+		/// <param name="objectType">The object type to check.</param>
+		/// <returns>true if the objectType or it's interfaces has a ServiceContract.</returns>
+		private bool TypeIsServiceContract(Type objectType)
+		{
+			if (objectType.GetCustomAttributes(typeof(ServiceContractAttribute), true).Count() > 0)
+				return true;
+
+			foreach (Type t in objectType.GetInterfaces())
+			{
+				if (TypeIsServiceContract(t) == true)
+					return true;
+			}
+
+			return false;
 		}
 
 		/// <summary>
