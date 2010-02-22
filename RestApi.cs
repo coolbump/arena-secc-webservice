@@ -437,7 +437,9 @@ namespace Arena.Custom.HDC.WebService
 					}
 					else if (templateMatch.BoundVariables.AllKeys.Contains(pi.Name.ToUpper()) == true)
 					{
-						p = Convert.ChangeType(templateMatch.BoundVariables[pi.Name.ToUpper()], pi.ParameterType);
+						p = templateMatch.BoundVariables[pi.Name.ToUpper()];
+						if (p != null)
+							p = Convert.ChangeType(p, pi.ParameterType);
 					}
 					else
 						p = null;
@@ -553,20 +555,19 @@ namespace Arena.Custom.HDC.WebService
 					if (typeof(Stream).IsAssignableFrom(result.GetType()) == true)
 					{
 						Stream s = (Stream)result;
-						byte[] buf = new byte[8192];
-						int count = 8192, offset = 0;
+						int count;
 
 						//
 						// Response is a data stream, just copy it to the response
 						// stream.
 						//
-						for (offset = 0; count == 8192; offset += count)
+						do
 						{
-							int avail = (int)(s.Length - offset);
+							byte[] buf = new byte[8192];
 
-							count = s.Read(buf, offset, (avail > 8192 ? 8192 : avail));
+							count = s.Read(buf, 0, 8192);
 							context.Response.BinaryWrite(buf);
-						}
+						} while (count > 0);
 					}
 					else if (typeof(Message).IsAssignableFrom(result.GetType()) == true)
 					{
