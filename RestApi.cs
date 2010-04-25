@@ -178,7 +178,7 @@ namespace Arena.Custom.HDC.WebService
 
 			RegisterExternalClass("/", assemblyName, namespaceName, className);
 
-			RegisterExternalClass("/core", "Arena.Services", "Arena.Services", "ArenaAPI");
+			RegisterExternalClass("/", "Arena.Services", "Arena.Services", "ArenaAPI");
 		}
 
 
@@ -461,9 +461,9 @@ namespace Arena.Custom.HDC.WebService
 			try
 			{
 				ArenaContext.Current.SetWebServiceProperties(ArenaContext.Current.CreatePrincipal(""), new Arena.Core.Person());
-				if (rmi.uriTemplate.ToString() != "/core/version" &&
-					rmi.uriTemplate.ToString() != "/core/login" &&
-					rmi.uriTemplate.ToString() != "/core/help" &&
+				if (rmi.uriTemplate.ToString() != "/version" &&
+					rmi.uriTemplate.ToString() != "/login" &&
+					rmi.uriTemplate.ToString() != "/help" &&
 					rmi.methodInfo.GetCustomAttributes(typeof(RestApiAnonymous), true).Length == 0)
 				{
 					String PathAndQuery = context.Request.RawUrl;
