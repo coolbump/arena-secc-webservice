@@ -48,61 +48,6 @@ namespace Arena.Custom.HDC.WebService
     /// </summary>
     public class CoreRpc
     {
-        /// <summary>
-        /// The currently authenticated Arena.Login user.
-        /// </summary>
-        private Login currentLogin;
-
-        /// <summary>
-        /// Creates an instance of the CoreRpc class with the given
-        /// authorization key. This key must have been retrieved via
-        /// a previous call to Login. If the authorization key is
-        /// invalid or has expired then an exception is raised.
-        /// </summary>
-        /// <param name="authorization">Provides the authorization key needed to authenticate the user.</param>
-        public CoreRpc(string authorization)
-        {
-            ArrayList paramList = new ArrayList();
-            SqlParameter paramOut = new SqlParameter();
-            SqlDataReader reader;
-
-            //
-            // Get the authorization provided by the end user and
-            // verify it. Also add another hour to it.
-            //
-            paramList.Add(new SqlParameter("ApiKey", new Guid(authorization)));
-            reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
-                        "cust_hdc_webservice_sp_get_authorizationByApiKey", paramList);
-            if (reader.HasRows == false)
-                throw new UnauthorizedAccessException("Invalid authorization provided.");
-            reader.Read();
-
-            //
-            // Set the login used for this process.
-            //
-            currentLogin = new Login(reader["login_id"].ToString());
-
-			if (Convert.ToBoolean(reader["temporary"]) == true)
-			{
-				//
-				// Update the authorization
-				//
-				paramList = new ArrayList();
-				paramList.Add(new SqlParameter("AuthorizationId", Convert.ToInt32(reader["authorization_id"])));
-				paramList.Add(new SqlParameter("LoginId", reader["login_id"].ToString()));
-				paramList.Add(new SqlParameter("Temporary", Convert.ToInt32(reader["temporary"].ToString())));
-				paramList.Add(new SqlParameter("Expires", DateTime.Now.AddHours(1)));
-				reader.Close();
-				paramOut.ParameterName = "@ID";
-				paramOut.Direction = ParameterDirection.Output;
-				paramOut.SqlDbType = SqlDbType.Int;
-				paramList.Add(paramOut);
-				reader = new Arena.DataLayer.Organization.OrganizationData().ExecuteReader(
-							"cust_hdc_webservice_sp_save_authorization", paramList);
-				reader.Close();
-			}
-        }
-
         #region Anonymous (non-authenticated) methods.
 
         /// <summary>
@@ -344,24 +289,24 @@ namespace Arena.Custom.HDC.WebService
 
             //
             // Retrieve all the fields the user has access to.
-            //
-            if (person.MemberStatus.LookupID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Member_Status, OperationType.View))
+            //currentLogin
+            if (person.MemberStatus.LookupID != -1 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Member_Status, OperationType.View))
             {
                 info.MemberStatus = new RpcLookup(person.MemberStatus);
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
             {
                 info.RecordStatus = person.RecordStatus.ToString();
             }
-            if (person.Campus != null && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Campus, OperationType.View))
+            if (person.Campus != null && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Campus, OperationType.View))
             {
                 info.CampusID = person.Campus.CampusId;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Staff_Member, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Staff_Member, OperationType.View))
             {
                 info.Staff = person.StaffMember;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Name, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Name, OperationType.View))
             {
                 info.FirstName = person.FirstName;
                 info.LastName = person.LastName;
@@ -382,7 +327,7 @@ namespace Arena.Custom.HDC.WebService
                     info.Suffix = new RpcLookup(person.Suffix);
                 }
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Family_Information, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Family_Information, OperationType.View))
             {
                 ArrayList members = new ArrayList();
 
@@ -400,19 +345,19 @@ namespace Arena.Custom.HDC.WebService
                 info.FamilyID = person.FamilyId;
                 info.FamilyMembers = (RpcFamilyMember[])members.ToArray(typeof(RpcFamilyMember));
             }
-            if (person.BirthDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
+            if (person.BirthDate.Year > 1901 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_BirthDate, OperationType.View))
             {
                 info.BirthDate = person.BirthDate;
             }
-            if (person.Age != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Age, OperationType.View))
+            if (person.Age != -1 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Age, OperationType.View))
             {
                 info.Age = person.Age;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Gender, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Gender, OperationType.View))
             {
                 info.Gender = person.Gender.ToString();
             }
-            if (person.GraduationDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Grade, OperationType.View))
+            if (person.GraduationDate.Year > 1901 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Grade, OperationType.View))
             {
                 try
                 {
@@ -425,47 +370,47 @@ namespace Arena.Custom.HDC.WebService
                     info.Grade = -person.GraduationDate.Year;
                 }
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Activity_Level, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Activity_Activity_Level, OperationType.View))
             {
                 info.ActiveMeter = person.ActiveMeter;
             }
-            if (person.AnniversaryDate.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
+            if (person.AnniversaryDate.Year > 1901 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Anniversary_Date, OperationType.View))
             {
                 info.Anniversary = person.AnniversaryDate;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Contribute_Individually, OperationType.View))
             {
                 info.ContributeIndividually = person.ContributeIndividually;
             }
-            if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
+            if (person.EnvelopeNumber != -1 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Envelope_Number, OperationType.View))
             {
                 info.EnvelopeNumber = person.EnvelopeNumber;
             }
-            if (person.Blob.BlobID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.View))
+            if (person.Blob.BlobID != -1 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Photo, OperationType.View))
             {
                 info.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + person.Blob.GUID;
             }
-            if (person.InactiveReason.LookupID != -1 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
+            if (person.InactiveReason.LookupID != -1 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Record_Status, OperationType.View))
             {
                 info.InactiveReason = new RpcLookup(person.InactiveReason);
             }
-            if (person.LastAttended.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
+            if (person.LastAttended.Year > 1901 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Attendance_Recent_Attendance, OperationType.View))
             {
                 info.LastAttended = person.LastAttended;
             }
-            if (person.DateLastVerified.Year > 1901 && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
+            if (person.DateLastVerified.Year > 1901 && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Date_Verified, OperationType.View))
             {
                 info.LastVerified = person.DateLastVerified;
             }
-            if (person.MedicalInformation != "" && PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
+            if (person.MedicalInformation != "" && PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Medical_Info, OperationType.View))
             {
                 info.MedicalInformation = person.MedicalInformation;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Print_Statement, OperationType.View))
             {
                 info.PrintStatement = person.PrintStatement;
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Marital_Status, OperationType.View))
             {
                 if (person.Spouse() != null)
                 {
@@ -473,7 +418,7 @@ namespace Arena.Custom.HDC.WebService
                 }
                 info.MaritalStatus = new RpcLookup(person.MaritalStatus);
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Peers, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Peers, OperationType.View))
             {
                 ArrayList peers = new ArrayList();
                 ScoreCollection scores = new ScoreCollection();
@@ -492,7 +437,7 @@ namespace Arena.Custom.HDC.WebService
                 info.PeerCount = scores.Count;
                 info.Peers = (RpcPeer[])peers.ToArray(typeof(RpcPeer));
             }
-            if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Relationships, OperationType.View))
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Relationships, OperationType.View))
             {
                 ArrayList relationships = new ArrayList();
 
@@ -544,7 +489,7 @@ namespace Arena.Custom.HDC.WebService
             //
             if (person.PersonID != -1)
             {
-                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Addresses, OperationType.View) == true)
                 {
                     //
                     // Build all the addresses.
@@ -582,7 +527,7 @@ namespace Arena.Custom.HDC.WebService
                     contact.Addresses = (RpcAddress[])addressList.ToArray(typeof(RpcAddress));
                 }
 
-                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Phones, OperationType.View) == true)
                 {
                     //
                     // Build all the phones.
@@ -606,7 +551,7 @@ namespace Arena.Custom.HDC.WebService
                     contact.Phones = (RpcPhone[])phoneList.ToArray(typeof(RpcPhone));
                 }
 
-                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Emails, OperationType.View) == true)
                 {
                     //
                     // Build all the emails.
@@ -709,7 +654,7 @@ namespace Arena.Custom.HDC.WebService
             //
             if (person.PersonID != -1)
             {
-                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Ministry_Tags, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Activity_Ministry_Tags, OperationType.View) == true)
                 {
                     //
                     // Load all the ministry profiles for this person.
@@ -724,7 +669,7 @@ namespace Arena.Custom.HDC.WebService
                     list.Ministry = (int[])profileIDs.ToArray(typeof(int));
                 }
 
-                if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Activity_Serving_Tags, OperationType.View) == true)
+                if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Activity_Serving_Tags, OperationType.View) == true)
                 {
                     //
                     // Load all the serving profiles for this person.
@@ -756,7 +701,7 @@ namespace Arena.Custom.HDC.WebService
             ArrayList array = new ArrayList();
 
 
-            phc = new PersonHistoryCollection(DefaultOrganizationID(), personID, 355, currentLogin.LoginID);
+            phc = new PersonHistoryCollection(DefaultOrganizationID(), personID, 355, ArenaContext.Current.User.Identity.Name);
             foreach (PersonHistory ph in phc)
             {
                 RpcNote note = new RpcNote();
@@ -786,13 +731,13 @@ namespace Arena.Custom.HDC.WebService
 		{
 			Person p = new Person(personID);
 
-			if (PersonFieldOperationAllowed(currentLogin.PersonID, PersonFields.Profile_Photo, OperationType.Edit) == false)
+            if (PersonFieldOperationAllowed(ArenaContext.Current.Person.PersonID, PersonFields.Profile_Photo, OperationType.Edit) == false)
 				throw new Exception("Access denied");
 
 			p.Blob.ByteArray = data;
 			p.Blob.SetFileInfo("image.jpg");
-			p.Blob.Save(currentLogin.LoginID);
-			p.Save(DefaultOrganizationID(), currentLogin.LoginID, false);
+            p.Blob.Save(ArenaContext.Current.User.Identity.Name);
+            p.Save(DefaultOrganizationID(), ArenaContext.Current.User.Identity.Name, false);
 
 			return BaseUrl() + "CachedBlob.aspx?guid=" + p.Blob.GUID;
 
@@ -828,7 +773,7 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
             {
                 info.Name = profile.Name;
                 info.Active = profile.Active;
@@ -897,7 +842,7 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
             {
 				info.AttendanceCount = member.AttendanceCount;
                 if (member.DateActive.Year > 1901 && member.DateActive.Year != 9999)
@@ -932,7 +877,7 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-			if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
 			{
 				DataTable dt;
 				StringBuilder sb = new StringBuilder();
@@ -984,11 +929,11 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
             {
                 for (i = 0; i < profile.ChildProfiles.Count; i++)
                 {
-                    if (ProfileOperationAllowed(currentLogin.PersonID, profile.ChildProfiles[i].ProfileID, OperationType.View) == true)
+                    if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profile.ChildProfiles[i].ProfileID, OperationType.View) == true)
                     {
                         list.Add(profile.ChildProfiles[i].ProfileID);
                     }
@@ -1012,11 +957,11 @@ namespace Arena.Custom.HDC.WebService
 
 
             collection = new ProfileCollection();
-            collection.LoadChildProfiles(-1, DefaultOrganizationID(), (ProfileType)profileType, currentLogin.PersonID);
+            collection.LoadChildProfiles(-1, DefaultOrganizationID(), (ProfileType)profileType, ArenaContext.Current.Person.PersonID);
             list = new ArrayList();
             for (i = 0; i < collection.Count; i++)
             {
-                if (ProfileOperationAllowed(currentLogin.PersonID, collection[i].ProfileID, OperationType.View) == true)
+                if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, collection[i].ProfileID, OperationType.View) == true)
                 {
                     list.Add(collection[i].ProfileID);
                 }
@@ -1046,7 +991,7 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
             {
                 profile.LoadMemberArray();
                 return (int[])profile.MemberArray.ToArray(typeof(int));
@@ -1079,7 +1024,7 @@ namespace Arena.Custom.HDC.WebService
             // Check if the user has access to view information about the
             // profile.
             //
-            if (ProfileOperationAllowed(currentLogin.PersonID, profileID, OperationType.View) == true)
+            if (ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profileID, OperationType.View) == true)
             {
                 for (i = 0; i < profile.Occurrences.Count; i++)
                 {
@@ -1181,7 +1126,7 @@ namespace Arena.Custom.HDC.WebService
 
 			foreach (GroupCluster cluster in clusters)
 			{
-				if (GroupClusterOperationAllowed(currentLogin.PersonID, cluster.GroupClusterID, OperationType.View) == true)
+                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == true)
 				{
 					list.Add(cluster.GroupClusterID);
 				}
@@ -1207,7 +1152,7 @@ namespace Arena.Custom.HDC.WebService
 
 			foreach (GroupCluster cluster in clusters)
 			{
-				if (GroupClusterOperationAllowed(currentLogin.PersonID, cluster.GroupClusterID, OperationType.View) == true)
+                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == true)
 				{
 					list.Add(cluster.GroupClusterID);
 				}
@@ -1333,7 +1278,7 @@ namespace Arena.Custom.HDC.WebService
 			GroupCollection groups = new GroupCollection(clusterID);
 
 
-			if (GroupClusterOperationAllowed(currentLogin.PersonID, clusterID, OperationType.View) == true)
+            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, clusterID, OperationType.View) == true)
 			{
 				foreach (Group group in groups)
 				{
@@ -1357,7 +1302,7 @@ namespace Arena.Custom.HDC.WebService
 
 
 			info.GroupID = group.GroupID;
-			if (group.GroupID == -1 || GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == false)
+            if (group.GroupID == -1 || GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == false)
 				return info;
 
 			info.Active = group.Active;
@@ -1409,7 +1354,7 @@ namespace Arena.Custom.HDC.WebService
 			int i;
 
 
-			if (GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == true)
+            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == true)
 			{
 				for (i = startAtIndex; i < group.Members.Count && i < (startAtIndex + numberOfMembers); i++)
 				{
@@ -1432,7 +1377,7 @@ namespace Arena.Custom.HDC.WebService
 			Group group = new Group(groupID);
 
 
-			if (GroupClusterOperationAllowed(currentLogin.PersonID, group.GroupClusterID, OperationType.View) == true)
+            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == true)
 			{
 				foreach (GroupOccurrence occurrence in group.Occurrences)
 				{
