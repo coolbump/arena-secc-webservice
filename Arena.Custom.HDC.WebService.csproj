@@ -63,6 +63,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Contracts\Lookup.cs" />
+    <Compile Include="Contracts\SmallGroupCategory.cs" />
     <Compile Include="CoreRpc.cs">
     </Compile>
     <None Include="JSON.cs" />

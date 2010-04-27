@@ -2,6 +2,8 @@
 using System;
 using System.Configuration;
 using System.Collections;
+using System.ServiceModel;
+using System.ServiceModel.Web;
 using System.Web;
 using System.Text;
 using System.Data;
@@ -1044,6 +1046,7 @@ namespace Arena.Custom.HDC.WebService
         /// no categories exist then an empty array is returned.
         /// </summary>
         /// <returns>Integer array of group categoryIDs.</returns>
+        [WebGet(UriTemplate = "smgp/category/list")]
         public int[] GetSmallGroupCategories()
 		{
 			ArrayList list = new ArrayList();
@@ -1065,50 +1068,17 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The category to find information about.</param>
         /// <returns>Basic information about a group category.</returns>
-		public RpcSmallGroupCategoryInformation? GetSmallGroupCategoryInformation(int categoryID)
+        [WebGet(UriTemplate = "smgp/category/{categoryID}")]
+		public Contracts.SmallGroupCategory GetSmallGroupCategory(int categoryID)
 		{
-			RpcSmallGroupCategoryInformation info = new RpcSmallGroupCategoryInformation();
-			Category cat = new Category(categoryID);
-			ArrayList roles = new ArrayList();
+			Category category = new Category(categoryID);
+            Contracts.SmallGroupCategoryMapper mapper = new Arena.Custom.HDC.WebService.Contracts.SmallGroupCategoryMapper();
 
 
-			if (cat.CategoryID == -1)
-			{
-				info.CategoryID = -1;
-				return info;
-			}
+			if (category.CategoryID == -1)
+                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid category ID");
 
-			info.CategoryID = cat.CategoryID;
-			info.AgeGroupCaption = cat.AgeGroupCaption;
-			info.AllowBulkUpdate = cat.AllowBulkUpdates;
-			info.AllowRegistrations = cat.AllowRegistrations;
-			info.CreditAsSmallGroup = cat.CreditAsSmallGroup;
-			info.DefaultRole = new RpcLookup(cat.DefaultRole);
-			info.DescriptionCaption = cat.DescriptionCaption;
-			info.HistoryIsPrivate = cat.HistoryIsPrivate;
-			info.LeaderCaption = cat.LeaderCaption;
-			info.LocationTargetCaption = cat.LocationTargetCaption;
-			info.MaritalPreferenceCaption = cat.MaritalPreferenceCaption;
-			info.MaximumMembersCaption = cat.MaximumMembersCaption;
-			info.MeetingDayCaption = cat.MeetingDayCaption;
-			info.Name = cat.CategoryName;
-			info.NameCaption = cat.NameCaption;
-			info.NotesCaption = cat.NotesCaption;
-			info.ParentCaption = cat.ParentCaption;
-			info.PictureCaption = cat.PictureCaption;
-			info.ScheduleCaption = cat.ScheduleCaption;
-			info.TopicCaption = cat.TopicCaption;
-			info.TypeCaption = cat.TypeCaption;
-			info.UrlCaption = cat.UrlCaption;
-			info.UsesArea = cat.UsesArea;
-			info.UseUniformNumber = cat.UseUniformNumber;
-			foreach (Lookup lkup in cat.ValidRoles)
-			{
-				roles.Add(new RpcLookup(lkup));
-			}
-			info.ValidRoles = (RpcLookup[])roles.ToArray(typeof(RpcLookup));
-
-			return info;
+            return mapper.FromArena(category);
 		}
 
         /// <summary>
@@ -2256,166 +2226,6 @@ namespace Arena.Custom.HDC.WebService
     }
 
     /// <summary>
-    /// Retrieve the basic information about a group category. This
-    /// structure follows the standard RPC retrieval and update rules.
-    /// </summary>
-    public struct RpcSmallGroupCategoryInformation
-    {
-        /// <summary>
-        /// The unique ID number that identifies this group category.
-        /// </summary>
-        public int CategoryID;
-
-        /// <summary>
-        /// The name of this group category.
-        /// </summary>
-        public string Name;
-
-        /// <summary>
-        /// Flag to indicate if this group category allows registrations.
-        /// I really don't remember what group registrations are for and
-        /// would love to update this documentation.
-        /// </summary>
-        public bool? AllowRegistrations;
-
-        /// <summary>
-        /// Flag to indicate if this category allows bulk update operations
-        /// to be performed on the members of any small groups of this type
-        /// of category. I think.
-        /// </summary>
-        public bool? AllowBulkUpdate;
-
-        /// <summary>
-        /// Wether or not the history of this category type is private. I
-        /// would assume this is a person's history in the group. I am
-        /// guessing, that this keeps the history private from fellow group
-        /// members but not the leader, but I may be wrong.
-        /// </summary>
-        public bool? HistoryIsPrivate;
-
-        /// <summary>
-        /// Wether membership in any small group of this category type should
-        /// count as small group membership. For example, a team group
-        /// probably does not count as a small group.
-        /// </summary>
-        public bool? CreditAsSmallGroup;
-
-        /// <summary>
-        /// Flag indicating if small groups of this category type should be
-        /// assigned to a specific area.
-        /// </summary>
-        public bool? UsesArea;
-
-        /// <summary>
-        /// Allow, Assign, or some such, uniform number. Generally this flag
-        /// would only be used if this group category has to do with teams.
-        /// </summary>
-        public bool? UseUniformNumber;
-
-        /// <summary>
-        /// The default role of new members in small groups of this type of
-        /// category.
-        /// </summary>
-        public RpcLookup DefaultRole;
-
-        /// <summary>
-        /// The caption to be used with the PrimaryAge member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string AgeGroupCaption;
-
-        /// <summary>
-        /// The caption to be used with the Description member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string DescriptionCaption;
-
-        /// <summary>
-        /// The caption to be used with the LeaderID member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string LeaderCaption;
-
-        /// <summary>
-        /// The caption to be used with the TargetLocationID member
-        /// of the RpcSmallGroupInformation structure.
-        /// </summary>
-        public string LocationTargetCaption;
-
-        /// <summary>
-        /// The caption to be used with the PrimaryMaritalStatus member
-        /// of the RpcSmallGroupInformation structure.
-        /// </summary>
-        public string MaritalPreferenceCaption;
-
-        /// <summary>
-        /// The caption to be used with the MaximumMembers member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string MaximumMembersCaption;
-
-        /// <summary>
-        /// The caption to be used with the MeetingDay member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string MeetingDayCaption;
-
-        /// <summary>
-        /// The caption to be used with the Name member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string NameCaption;
-
-        /// <summary>
-        /// The caption to be used with the Notes member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string NotesCaption;
-
-        /// <summary>
-        /// The caption to be used with the ParentID member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string ParentCaption;
-
-        /// <summary>
-        /// The caption to be used with the PictureUrl member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string PictureCaption;
-
-        /// <summary>
-        /// The caption to be used with the Schedule member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string ScheduleCaption;
-
-        /// <summary>
-        /// The caption to be used with the Topic member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string TopicCaption;
-
-        /// <summary>
-        /// The caption to be used with the TypeID member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string TypeCaption;
-
-        /// <summary>
-        /// The caption to be used with the Url member of the
-        /// RpcSmallGroupInformation structure.
-        /// </summary>
-        public string UrlCaption;
-
-        /// <summary>
-        /// An array of RpcLookups which list the valid roles members
-        /// are allowed to take on for small groups of this category
-        /// type.
-        /// </summary>
-        public RpcLookup[] ValidRoles;
-    }
-
     /// <summary>
     /// Contains the basic information about a group cluster. This
     /// structure follows the standard RPC retrieval and update
