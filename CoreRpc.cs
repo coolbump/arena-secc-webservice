@@ -1068,10 +1068,10 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The category to find information about.</param>
         /// <returns>Basic information about a group category.</returns>
-        [WebGet(UriTemplate = "smgp/category/{categoryID}")]
-		public Contracts.SmallGroupCategory GetSmallGroupCategory(int categoryID)
+        [WebGet(UriTemplate = "smgp/category/{CategoryID}")]
+		public Contracts.SmallGroupCategory GetSmallGroupCategory(int CategoryID)
 		{
-			Category category = new Category(categoryID);
+			Category category = new Category(CategoryID);
             Contracts.SmallGroupCategoryMapper mapper = new Arena.Custom.HDC.WebService.Contracts.SmallGroupCategoryMapper();
 
 
@@ -1088,37 +1088,26 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The parent category to find all root clusters of.</param>
         /// <returns>Integer array of clusterIDs.</returns>
-		public int[] GetSmallGroupRootClusters(int categoryID)
+        [WebGet(UriTemplate = "smgp/cluster/list?CategoryID={CategoryID}&ClusterID={ClusterID}")]
+		public int[] GetSmallGroupClusters(String CategoryID, String ClusterID)
 		{
-			GroupClusterCollection clusters = new GroupClusterCollection(categoryID, DefaultOrganizationID());
-			ArrayList list = new ArrayList();
+            GroupClusterCollection clusters;
+            ArrayList list = new ArrayList();
 
 
-			foreach (GroupCluster cluster in clusters)
-			{
-                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == true)
-				{
-					list.Add(cluster.GroupClusterID);
-				}
-			}
+            if (CategoryID != null)
+            {
+                clusters = new GroupClusterCollection(Convert.ToInt32(CategoryID), DefaultOrganizationID());
+            }
+            else if (ClusterID != null)
+            {
+                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, Convert.ToInt32(ClusterID), OperationType.View) == false)
+                    throw new Exception("Access denied.");
 
-			return (int[])list.ToArray(typeof(int));
-		}
-
-        /// <summary>
-        /// Retrieve a list of small group clusters that reside underneath
-        /// the parent cluster ID. If there are no group clusters beneath
-        /// the parent then an empty array is returned. If this happens the
-        /// client should make a call to GetSmallGroups to check for any
-        /// small groups under the cluster.
-        /// </summary>
-        /// <param name="clusterID">The parent clusterID to find clusters under.</param>
-        /// <returns>An integer array of group clusters.</returns>
-        public int[] GetSmallGroupClusters(int clusterID)
-		{
-			GroupClusterCollection clusters = new GroupClusterCollection(clusterID);
-			ArrayList list = new ArrayList();
-
+                clusters = new GroupClusterCollection(Convert.ToInt32(ClusterID));
+            }
+            else
+                throw new Exception("Required parameters not provided.");
 
 			foreach (GroupCluster cluster in clusters)
 			{
@@ -1170,70 +1159,20 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The cluster to retrieve information about.</param>
         /// <returns>Basic information about the group cluster.</returns>
-		public RpcSmallGroupClusterInformation? GetSmallGroupClusterInformation(int clusterID)
+        [WebGet(UriTemplate = "smgp/cluster/{ClusterID}")]
+		public Contracts.SmallGroupCluster GetSmallGroupClusterInformation(int ClusterID)
 		{
-			RpcSmallGroupClusterInformation info = new RpcSmallGroupClusterInformation();
-			GroupCluster cluster = new GroupCluster(clusterID);
+            Contracts.SmallGroupClusterMapper mapper = new Contracts.SmallGroupClusterMapper();
+            GroupCluster cluster = new GroupCluster(ClusterID);
 
 
-			info.ClusterID = cluster.GroupClusterID;
-			if (info.ClusterID == -1)
-				return info;
+            if (cluster.GroupClusterID == -1)
+                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid cluster ID");
 
-			info.Active = cluster.Active;
-			info.Admin = new RpcPersonReference(cluster.Admin);
-			info.AreaID = cluster.Area.AreaID;
-			info.CategoryID = cluster.ClusterType.CategoryID;
-			info.TypeID = cluster.ClusterTypeID;
-			info.CreatedBy = cluster.CreatedBy;
-			info.DateCreated = cluster.DateCreated;
-			info.DateModified = cluster.DateModified;
-			info.Description = cluster.Description;
-			if (cluster.ImageBlob.BlobID != -1)
-			{
-				info.ImageUrl = BaseUrl() + "CachedBlob.aspx?guid=" + cluster.ImageBlob.GUID;
-			}
-			info.Leader = new RpcPersonReference(cluster.Leader);
-			info.Level = cluster.ClusterLevelID;
-			info.ModifiedBy = cluster.ModifiedBy;
-			info.Name = cluster.Name;
-			if (cluster.NavigationUrl != null && cluster.NavigationUrl.Length > 0)
-				info.NavigationUrl = cluster.NavigationUrl;
-			if (cluster.Notes != null && cluster.Notes.Length > 0)
-				info.Notes = cluster.Notes;
-			info.ParentID = cluster.ParentClusterID;
-			if (cluster.ClusterUrl != null && cluster.ClusterUrl.Length > 0)
-				info.Url = cluster.ClusterUrl;
+            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == false)
+                throw new Exception("Access denied.");
 
-			//
-			// Get the counts from Arena.
-			//
-			SqlParameter groupCount, memberCount, unassignedRegCount, assignedRegCount;
-			ArrayList paramList = new ArrayList();
-
-			groupCount = new SqlParameter("@GroupCount", SqlDbType.Int);
-			groupCount.Direction = ParameterDirection.Output;
-			memberCount = new SqlParameter("@MemberCount", SqlDbType.Int);
-			memberCount.Direction = ParameterDirection.Output;
-			unassignedRegCount = new SqlParameter("@UnassignedRegCount", SqlDbType.Int);
-			unassignedRegCount.Direction = ParameterDirection.Output;
-			assignedRegCount = new SqlParameter("@AssignedRegCount", SqlDbType.Int);
-			assignedRegCount.Direction = ParameterDirection.Output;
-
-			paramList.Add(new SqlParameter("@ParentClusterID", clusterID));
-			paramList.Add(new SqlParameter("@ActiveOnly", 1));
-			paramList.Add(groupCount);
-			paramList.Add(memberCount);
-			paramList.Add(unassignedRegCount);
-			paramList.Add(assignedRegCount);
-
-			new Arena.DataLayer.Organization.OrganizationData().ExecuteNonQuery("smgp_sp_get_counts", paramList);
-			info.GroupCount = (int)groupCount.Value;
-			info.MemberCount = (int)memberCount.Value;
-			info.RegistrationCount = (int)unassignedRegCount.Value;
-			info.ClusterCount = cluster.ChildClusters.Count;
-
-			return info;
+            return mapper.FromArena(cluster);
 		}
 
         /// <summary>
@@ -2223,143 +2162,6 @@ namespace Arena.Custom.HDC.WebService
         /// The relationships that have been defined for this person.
         /// </summary>
         public RpcRelationship[] Relationships;
-    }
-
-    /// <summary>
-    /// <summary>
-    /// Contains the basic information about a group cluster. This
-    /// structure follows the standard RPC retrieval and update
-    /// rules.
-    /// </summary>
-    public struct RpcSmallGroupClusterInformation
-    {
-        /// <summary>
-        /// The Group Cluster ID that this information pertains to.
-        /// </summary>
-        public int ClusterID;
-
-        /// <summary>
-        /// The parent cluster ID of this cluster.
-        /// </summary>
-        public int? ParentID;
-
-        /// <summary>
-        /// The group category ID of this cluster.
-        /// </summary>
-        public int? CategoryID;
-
-        /// <summary>
-        /// The name of this cluster.
-        /// </summary>
-        public string Name;
-
-        /// <summary>
-        /// Flag which indicates wether or not this group cluster is
-        /// active.
-        /// </summary>
-        public bool? Active;
-
-        /// <summary>
-        /// Retrieve the level of this group cluster.
-        /// </summary>
-        public int? Level;
-
-        /// <summary>
-        /// Retrieve the cluster type of this group cluster.
-        /// </summary>
-        public int? TypeID;
-
-        /// <summary>
-        /// Description of this group cluster.
-        /// </summary>
-        public string Description;
-
-        /// <summary>
-        /// Notes that relate to this group cluster.
-        /// </summary>
-        public string Notes;
-
-		/// <summary>
-		/// The number of child clusters under this cluster.
-		/// </summary>
-		public int? ClusterCount;
-
-        /// <summary>
-        /// The number of pending registrations in this group
-        /// cluster and its descendents. This property is
-        /// read-only.
-        /// </summary>
-        public int? RegistrationCount;
-
-        /// <summary>
-        /// The number of members in this group cluster and its
-        /// descendents. This property is read-only.
-        /// </summary>
-        public int? MemberCount;
-
-		/// <summary>
-		/// The number of small groups in this group cluster and
-		/// its descendents. This property is read-only.
-		/// </summary>
-		public int? GroupCount;
-
-        /// <summary>
-        /// The person who is the administrator of
-        /// this group cluster.
-        /// </summary>
-        public RpcPersonReference? Admin;
-
-        /// <summary>
-        /// The person who is considered the leader of
-        /// this group cluster.
-        /// </summary>
-		public RpcPersonReference? Leader;
-
-        /// <summary>
-        /// The Area ID that this group cluster belongs to.
-        /// </summary>
-        public int? AreaID;
-
-        /// <summary>
-        /// The URL for this group cluster. This is not the same
-        /// as the NavigationUrl. This is more like a groups
-        /// website that might be outside the Arena system.
-        /// </summary>
-        public string Url;
-
-        /// <summary>
-        /// The name of the person who created this small group
-        /// cluster.
-        /// </summary>
-        public string CreatedBy;
-
-        /// <summary>
-        /// The date this group cluster was created on.
-        /// </summary>
-        public DateTime? DateCreated;
-
-        /// <summary>
-        /// The name of the last person to have modified this small
-        /// group cluster.
-        /// </summary>
-        public string ModifiedBy;
-
-        /// <summary>
-        /// The date this group cluster was last modified on.
-        /// </summary>
-        public DateTime? DateModified;
-
-        /// <summary>
-        /// The URL that can be used to navigate to this group
-        /// cluster in a web browser.
-        /// </summary>
-        public string NavigationUrl;
-
-        /// <summary>
-        /// The URL that can be used to retrieve the group cluster's
-        /// image.
-        /// </summary>
-        public string ImageUrl;
     }
 
 	public struct RpcSmallGroupClusterType

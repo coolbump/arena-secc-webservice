@@ -1,25 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Runtime.Serialization;
 using Arena.SmallGroup;
 using Arena.Core;
 using Arena.Services;
 
 namespace Arena.Custom.HDC.WebService.Contracts
 {
+    /// <summary>
     /// Retrieve the basic information about a group category. This
     /// structure follows the standard RPC retrieval and update rules.
     /// </summary>
-    public struct SmallGroupCategory
+    [DataContract(Namespace="")]
+    public class SmallGroupCategory
     {
         /// <summary>
         /// The unique ID number that identifies this group category.
         /// </summary>
-        public int? CategoryID;
+        [DataMember(EmitDefaultValue = true)]
+        public int? CategoryID = -1;
 
         /// <summary>
         /// The name of this group category.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string Name;
 
         /// <summary>
@@ -27,6 +32,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// I really don't remember what group registrations are for and
         /// would love to update this documentation.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? AllowRegistrations;
 
         /// <summary>
@@ -34,6 +40,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// to be performed on the members of any small groups of this type
         /// of category. I think.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? AllowBulkUpdate;
 
         /// <summary>
@@ -42,6 +49,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// guessing, that this keeps the history private from fellow group
         /// members but not the leader, but I may be wrong.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? HistoryIsPrivate;
 
         /// <summary>
@@ -49,114 +57,133 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// count as small group membership. For example, a team group
         /// probably does not count as a small group.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? CreditAsSmallGroup;
 
         /// <summary>
         /// Flag indicating if small groups of this category type should be
         /// assigned to a specific area.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? UsesArea;
 
         /// <summary>
         /// Allow, Assign, or some such, uniform number. Generally this flag
         /// would only be used if this group category has to do with teams.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public bool? UseUniformNumber;
 
         /// <summary>
         /// The default role of new members in small groups of this type of
         /// category.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public Lookup DefaultRole;
 
         /// <summary>
         /// The caption to be used with the PrimaryAge member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string AgeGroupCaption;
 
         /// <summary>
         /// The caption to be used with the Description member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string DescriptionCaption;
 
         /// <summary>
         /// The caption to be used with the LeaderID member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string LeaderCaption;
 
         /// <summary>
         /// The caption to be used with the TargetLocationID member
         /// of the RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string LocationTargetCaption;
 
         /// <summary>
         /// The caption to be used with the PrimaryMaritalStatus member
         /// of the RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string MaritalPreferenceCaption;
 
         /// <summary>
         /// The caption to be used with the MaximumMembers member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string MaximumMembersCaption;
 
         /// <summary>
         /// The caption to be used with the MeetingDay member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string MeetingDayCaption;
 
         /// <summary>
         /// The caption to be used with the Name member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string NameCaption;
 
         /// <summary>
         /// The caption to be used with the Notes member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string NotesCaption;
 
         /// <summary>
         /// The caption to be used with the ParentID member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string ParentCaption;
 
         /// <summary>
         /// The caption to be used with the PictureUrl member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string PictureCaption;
 
         /// <summary>
         /// The caption to be used with the Schedule member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string ScheduleCaption;
 
         /// <summary>
         /// The caption to be used with the Topic member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string TopicCaption;
 
         /// <summary>
         /// The caption to be used with the TypeID member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string TypeCaption;
 
         /// <summary>
         /// The caption to be used with the Url member of the
         /// RpcSmallGroupInformation structure.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public string UrlCaption;
 
         /// <summary>
@@ -164,6 +191,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// are allowed to take on for small groups of this category
         /// type.
         /// </summary>
+        [DataMember(EmitDefaultValue = false)]
         public List<Lookup> ValidRoles;
     }
 

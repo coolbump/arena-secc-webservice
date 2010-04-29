@@ -65,6 +65,7 @@
   <ItemGroup>
     <Compile Include="Contracts\Lookup.cs" />
     <Compile Include="Contracts\SmallGroupCategory.cs" />
+    <Compile Include="Contracts\SmallGroupCluster.cs" />
     <Compile Include="CoreRpc.cs">
     </Compile>
     <None Include="JSON.cs" />

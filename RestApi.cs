@@ -130,8 +130,6 @@ namespace Arena.Custom.HDC.WebService
 
 			CoreRpc rpc = new CoreRpc();
             RegisterObjectContractHandlers("/", rpc, rpc.GetType());
-//			RegisterHandler(rpc, "GET", "/contact", rpc.GetType().GetMethod("GetPersonContactInformation"));
-//			RegisterHandler(rpc, "GET", "/roots?profileType={profileType}", rpc.GetType().GetMethod("GetProfileRoots"));
 		}
 
 		/// <summary>
