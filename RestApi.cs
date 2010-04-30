@@ -2,6 +2,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -15,6 +17,7 @@ using System.Web.SessionState;
 using System.Xml;
 using System.Xml.Serialization;
 using Arena.Core;
+using Arena.Security;
 using Arena.Services;
 using Arena.Services.Behaviors.ErrorHandling;
 using Arena.Services.Exceptions;
@@ -109,6 +112,7 @@ namespace Arena.Custom.HDC.WebService
 
 
 		#region Handler registration code
+
 		/// <summary>
 		/// Register all handlers in the system both internal and
 		/// external.
@@ -128,9 +132,12 @@ namespace Arena.Custom.HDC.WebService
 		{
 			RegisterObjectContractHandlers("/", this, this.GetType());
 
-			CoreRpc rpc = new CoreRpc();
-            RegisterObjectContractHandlers("/", rpc, rpc.GetType());
-		}
+            Object api;
+            api = new CoreRpc();
+            RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new SmallGroupAPI();
+            RegisterObjectContractHandlers("/", api, api.GetType());
+        }
 
 		/// <summary>
 		/// Ths is a debug method that provides information about what is
@@ -378,7 +385,8 @@ namespace Arena.Custom.HDC.WebService
 
 			return null;
 		}
-		#endregion
+
+        #endregion
 
 
 		#region Http Handler methods
@@ -661,5 +669,138 @@ namespace Arena.Custom.HDC.WebService
 		}
 
 		#endregion
-	}
+
+
+        #region Convenience methods for called api methods
+
+        /// <summary>
+        /// Determines if the personID has access to perform the
+        /// indicated operation on the person field in question.
+        /// </summary>
+        /// <param name="personID">The ID number of the person whose security access we are checking.</param>
+        /// <param name="field">The ID number of the PersonField that the user wants access to.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
+        static public bool PersonFieldOperationAllowed(int personID, int field, OperationType operation)
+        {
+            PermissionCollection permissions;
+
+            //
+            // Load the permissions.
+            //
+            permissions = new PermissionCollection(ObjectType.PersonField, field);
+
+            return PermissionsOperationAllowed(permissions, personID, operation);
+        }
+
+        /// <summary>
+        /// Determines if the personID has access to perform the
+        /// indicated operation on the profile in question.
+        /// </summary>
+        /// <param name="personID">The ID number of the person whose security access we are checking.</param>
+        /// <param name="profileID">The ID number of the profile the user wants access to.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
+        static public bool ProfileOperationAllowed(int personID, int profileID, OperationType operation)
+        {
+            PermissionCollection permissions;
+
+            //
+            // Load the permissions.
+            //
+            permissions = new PermissionCollection(ObjectType.Tag, profileID);
+
+            return PermissionsOperationAllowed(permissions, personID, operation);
+        }
+
+        /// <summary>
+        /// Determines if the personID has access to perform the indicated operation
+        /// on the small group cluster in question.
+        /// </summary>
+        /// <param name="personID">The ID number of the person whose security access we are checkin.</param>
+        /// <param name="clusterID">The ID number of the profile the user wants access to.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
+        static public bool GroupClusterOperationAllowed(int personID, int clusterID, OperationType operation)
+        {
+            PermissionCollection permissions;
+
+            //
+            // Load the permissions.
+            //
+            permissions = new PermissionCollection(ObjectType.Group_Cluster, clusterID);
+
+            return PermissionsOperationAllowed(permissions, personID, operation);
+        }
+
+        /// <summary>
+        /// Checks the PermissionCollection class to determine if the
+        /// indicated operation is allowed for the person identified by
+        /// their ID number.
+        /// </summary>
+        /// <param name="permissions">The collection of permissions to check. These should be object permissions.</param>
+        /// <param name="personID">The ID number of the user whose security access we are checking.</param>
+        /// <param name="operation">The type of access the user needs to proceed.</param>
+        /// <returns>true/false indicating if the operation is allowed.</returns>
+        static public bool PermissionsOperationAllowed(PermissionCollection permissions, int personID, OperationType operation)
+        {
+            RoleCollection roles;
+            int i;
+
+            //
+            // Check if the person has direct permission.
+            //
+            if (permissions.ContainsSubjectOperation(SubjectType.Person, personID, operation) == true)
+                return true;
+
+            //
+            // Now check all roles for the given person.
+            //
+            roles = new RoleCollection(DefaultOrganizationID(), personID);
+            for (i = 0; i < roles.Count; i++)
+            {
+                if (permissions.ContainsSubjectOperation(SubjectType.Role, roles[i].RoleID, operation) == true)
+                    return true;
+            }
+
+            return false;
+        }
+
+
+        /// <summary>
+        /// Retrieve the default organization ID for this web
+        /// service. This is retrieved via the "Organization"
+        /// application setting in the web.config file.
+        /// </summary>
+        /// <returns>An integer indicating the organization ID.</returns>
+        static public int DefaultOrganizationID()
+        {
+            return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
+        }
+
+        /// <summary>
+        /// Retrieve the base url (the portion of the URL without the last path
+        /// component, that is the filename and query string) of the current
+        /// web request.
+        /// </summary>
+        /// <returns>Base url as a string.</returns>
+        static public string BaseUrl()
+        {
+            StringBuilder url = new StringBuilder();
+            string[] segments;
+            int i;
+
+
+            url.Append(HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority));
+            segments = HttpContext.Current.Request.Url.Segments;
+            for (i = 0; i < segments.Length - 1; i++)
+            {
+                url.Append(segments[i]);
+            }
+
+            return url.ToString();
+        }
+
+        #endregion
+    }
 }

@@ -2,6 +2,7 @@
 using System;
 using System.Configuration;
 using System.Collections;
+using System.Collections.Generic;
 using System.ServiceModel;
 using System.ServiceModel.Web;
 using System.Web;
@@ -1041,85 +1042,6 @@ namespace Arena.Custom.HDC.WebService
 
         #region Methods for working with small group records.
 
-        /// <summary>
-        /// Retrieve a list of all group categories in the system. If, by chance,
-        /// no categories exist then an empty array is returned.
-        /// </summary>
-        /// <returns>Integer array of group categoryIDs.</returns>
-        [WebGet(UriTemplate = "smgp/category/list")]
-        public int[] GetSmallGroupCategories()
-		{
-			ArrayList list = new ArrayList();
-			CategoryCollection categories = new CategoryCollection();
-
-
-			foreach (Category cat in categories)
-			{
-				list.Add(cat.CategoryID);
-			}
-
-			return (int[])list.ToArray(typeof(int));
-		}
-
-        /// <summary>
-        /// Retrieve the information about a small group category.
-        /// If the given category is not found then -1 is returned in the
-        /// categoryID member.
-        /// </summary>
-        /// <param name="categoryID">The category to find information about.</param>
-        /// <returns>Basic information about a group category.</returns>
-        [WebGet(UriTemplate = "smgp/category/{CategoryID}")]
-		public Contracts.SmallGroupCategory GetSmallGroupCategory(int CategoryID)
-		{
-			Category category = new Category(CategoryID);
-            Contracts.SmallGroupCategoryMapper mapper = new Arena.Custom.HDC.WebService.Contracts.SmallGroupCategoryMapper();
-
-
-			if (category.CategoryID == -1)
-                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid category ID");
-
-            return mapper.FromArena(category);
-		}
-
-        /// <summary>
-        /// Retrieve a list of all group clusters at the root level of the
-        /// group category. If no group clusters are contained in the category
-        /// then an empty array is returned.
-        /// </summary>
-        /// <param name="categoryID">The parent category to find all root clusters of.</param>
-        /// <returns>Integer array of clusterIDs.</returns>
-        [WebGet(UriTemplate = "smgp/cluster/list?CategoryID={CategoryID}&ClusterID={ClusterID}")]
-		public int[] GetSmallGroupClusters(String CategoryID, String ClusterID)
-		{
-            GroupClusterCollection clusters;
-            ArrayList list = new ArrayList();
-
-
-            if (CategoryID != null)
-            {
-                clusters = new GroupClusterCollection(Convert.ToInt32(CategoryID), DefaultOrganizationID());
-            }
-            else if (ClusterID != null)
-            {
-                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, Convert.ToInt32(ClusterID), OperationType.View) == false)
-                    throw new Exception("Access denied.");
-
-                clusters = new GroupClusterCollection(Convert.ToInt32(ClusterID));
-            }
-            else
-                throw new Exception("Required parameters not provided.");
-
-			foreach (GroupCluster cluster in clusters)
-			{
-                if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == true)
-				{
-					list.Add(cluster.GroupClusterID);
-				}
-			}
-
-			return (int[])list.ToArray(typeof(int));
-		}
-
 		public RpcSmallGroupClusterType? GetSmallGroupClusterTypeInformation(int typeID)
 		{
 			RpcSmallGroupClusterType info = new RpcSmallGroupClusterType();
@@ -1154,100 +1076,6 @@ namespace Arena.Custom.HDC.WebService
 		}
 
         /// <summary>
-        /// Retrieve the information about a group cluster. If the group
-        /// cluster is not found then -1 is returned in the clusterID member.
-        /// </summary>
-        /// <param name="clusterID">The cluster to retrieve information about.</param>
-        /// <returns>Basic information about the group cluster.</returns>
-        [WebGet(UriTemplate = "smgp/cluster/{ClusterID}")]
-		public Contracts.SmallGroupCluster GetSmallGroupClusterInformation(int ClusterID)
-		{
-            Contracts.SmallGroupClusterMapper mapper = new Contracts.SmallGroupClusterMapper();
-            GroupCluster cluster = new GroupCluster(ClusterID);
-
-
-            if (cluster.GroupClusterID == -1)
-                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid cluster ID");
-
-            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == false)
-                throw new Exception("Access denied.");
-
-            return mapper.FromArena(cluster);
-		}
-
-        /// <summary>
-        /// Retrieve a list of small groups which reside under the parent group
-        /// cluster. If no small groups are found then an empty array is returned.
-        /// </summary>
-        /// <param name="clusterID">The parent cluster to find small groups under.</param>
-        /// <returns>An integer array of small groups under the parent cluster.</returns>
-		public int[] GetSmallGroups(int clusterID)
-		{
-			ArrayList list = new ArrayList();
-			GroupCollection groups = new GroupCollection(clusterID);
-
-
-            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, clusterID, OperationType.View) == true)
-			{
-				foreach (Group group in groups)
-				{
-					list.Add(group.GroupID);
-				}
-			}
-
-			return (int[])list.ToArray(typeof(int));
-		}
-
-        /// <summary>
-        /// Retrieves information about the small group. If the small
-        /// group is not found then -1 is returned in the groupID member.
-        /// </summary>
-        /// <param name="groupID">The small group to retrieve information about.</param>
-        /// <returns>Basic information about the small group.</returns>
-		public RpcSmallGroupInformation? GetSmallGroupInformation(int groupID)
-		{
-			RpcSmallGroupInformation info = new RpcSmallGroupInformation();
-			Group group = new Group(groupID);
-
-
-			info.GroupID = group.GroupID;
-            if (group.GroupID == -1 || GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == false)
-				return info;
-
-			info.Active = group.Active;
-			info.AreaID = group.AreaID;
-			info.AverageAge = group.AverageAge;
-			info.CategoryID = group.ClusterType.CategoryID;
-			info.ClusterID = group.GroupClusterID;
-			info.CreatedBy = group.CreatedBy;
-			info.DateCreated = group.DateCreated;
-			info.DateModified = group.DateModified;
-			info.Description = group.Description;
-			info.Distance = group.Distance;
-			info.Leader = new RpcSmallGroupMemberReference(group, group.Leader);
-			info.Level = group.ClusterLevelID;
-			info.MaximumMembers = group.MaxMembers;
-			info.MeetingDay = new RpcLookup(group.MeetingDay);
-			info.MemberCount = group.Members.Count;
-			info.ModifiedBy = group.ModifiedBy;
-			info.Name = group.Name;
-			info.NavigationUrl = group.NavigationUrl;
-			info.Notes = group.Notes;
-			info.PictureUrl = BaseUrl();
-			info.PrimaryAge = new RpcLookup(group.PrimaryAge);
-			info.PrimaryMaritalStatus = new RpcLookup(group.PrimaryMaritalStatus);
-			info.Private = group.Private;
-			info.RegistrationCount = group.RegistrationCount;
-			info.Schedule = group.Schedule;
-			info.TargetLocationID = group.TargetLocationID;
-			info.Topic = new RpcLookup(group.Topic);
-			info.TypeID = group.ClusterTypeID;
-			info.Url = group.GroupUrl;
-
-			return info;
-		}
-
-        /// <summary>
         /// Find all people who are members of the small group and return their
         /// person IDs. All members are returned including in-active members. If the
         /// small group has no members then an empty array is returned.
@@ -1256,23 +1084,23 @@ namespace Arena.Custom.HDC.WebService
 		/// <param name="startAtIndex">The 0-based index to start retrieving at.</param>
 		/// <param name="numberOfMembers">The maximum number of members to retrieve.</param>
 		/// <returns>Integer array of personIDs.</returns>
-		public RpcSmallGroupMemberReference[] GetSmallGroupMembers(int groupID, int startAtIndex, int numberOfMembers)
-		{
-			ArrayList list = new ArrayList();
-			Group group = new Group(groupID);
-			int i;
+        //public RpcSmallGroupMemberReference[] GetSmallGroupMembers(int groupID, int startAtIndex, int numberOfMembers)
+        //{
+        //    ArrayList list = new ArrayList();
+        //    Group group = new Group(groupID);
+        //    int i;
 
 
-            if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == true)
-			{
-				for (i = startAtIndex; i < group.Members.Count && i < (startAtIndex + numberOfMembers); i++)
-				{
-					list.Add(new RpcSmallGroupMemberReference(group.Members[i]));
-				}
-			}
+        //    if (GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, group.GroupClusterID, OperationType.View) == true)
+        //    {
+        //        for (i = startAtIndex; i < group.Members.Count && i < (startAtIndex + numberOfMembers); i++)
+        //        {
+        //            list.Add(new RpcSmallGroupMemberReference(group.Members[i]));
+        //        }
+        //    }
 
-			return (RpcSmallGroupMemberReference[])list.ToArray(typeof(RpcSmallGroupMemberReference));
-		}
+        //    return (RpcSmallGroupMemberReference[])list.ToArray(typeof(RpcSmallGroupMemberReference));
+        //}
 
         /// <summary>
         /// Find all occurrences of the given small group. If the small group
@@ -1864,73 +1692,6 @@ namespace Arena.Custom.HDC.WebService
     }
 
 	/// <summary>
-	/// Defines the information that is needed to display a list of small
-	/// group members. 
-	/// </summary>
-	public struct RpcSmallGroupMemberReference
-	{
-		/// <summary>
-		/// Designated initializer for this structure.
-		/// </summary>
-		/// <param name="member">The small group member to create a reference for.</param>
-		public RpcSmallGroupMemberReference(GroupMember member)
-		{
-			Group g = new Group(member.GroupID);
-
-			this.PersonID = member.PersonID;
-			this.Name = member.FullName;
-			this.Active = member.Active;
-			this.RoleName = member.Role.Value;
-			if (g.ClusterType.Category.UseUniformNumber == true)
-				this.UniformNumber = member.UniformNumber;
-			else
-				this.UniformNumber = null;
-		}
-
-		/// <summary>
-		/// Designated initializer for constructing the leader reference to
-		/// a small group.
-		/// </summary>
-		/// <param name="group"></param>
-		/// <param name="leader"></param>
-		public RpcSmallGroupMemberReference(Group group, Person leader)
-		{
-			this.PersonID = leader.PersonID;
-			this.Name = leader.FullName;
-			this.Active = true;
-			this.RoleName = group.ClusterType.Category.LeaderCaption;
-			this.UniformNumber = null;
-		}
-
-		/// <summary>
-		/// The ID number that identifies this small group member. This ID
-		/// number can be used to request more detailed information about
-		/// the member as it is a standard PersonID.
-		/// </summary>
-		int PersonID;
-
-		/// <summary>
-		/// The name to be used when displaying the member's name in a list.
-		/// </summary>
-		string Name;
-
-		/// <summary>
-		/// Identifies if this member is active in the small group.
-		/// </summary>
-		bool Active;
-
-		/// <summary>
-		/// The name of the role of this member in the small group.
-		/// </summary>
-		string RoleName;
-
-		/// <summary>
-		/// The uniform number if the small group supports uniform numbers.
-		/// </summary>
-		int? UniformNumber;
-	}
-
-	/// <summary>
 	/// A reference object used to identify a person in a list. It provides
 	/// the basic information needed to display the person as well as the ID
 	/// number of the person for retrieving more detailed information.
@@ -2183,182 +1944,6 @@ namespace Arena.Custom.HDC.WebService
 		public string Name;
 		public bool AllowGroups;
 	}
-
-    /// <summary>
-    /// Contains the general information about a small group. This
-    /// structure conforms to the standard RPC retrieval and update
-    /// rules.
-    /// </summary>
-    public struct RpcSmallGroupInformation
-    {
-        /// <summary>
-        /// The ID number of the small group that this information
-        /// pertains to.
-        /// </summary>
-        public int GroupID;
-
-        /// <summary>
-        /// The ID number of the parent cluster of this small group.
-        /// </summary>
-        public int? ClusterID;
-
-        /// <summary>
-        /// The group category ID of this small group.
-        /// </summary>
-        public int? CategoryID;
-
-        /// <summary>
-        /// The name of this small group.
-        /// </summary>
-        public string Name;
-
-        /// <summary>
-        /// Flag specifying wether or not this small group is to be
-        /// considered active.
-        /// </summary>
-        public bool? Active;
-
-        /// <summary>
-        /// The Level of this small group in the type.
-        /// </summary>
-        public int? Level;
-
-        /// <summary>
-        /// The TypeID of this small group.
-        /// </summary>
-        public int? TypeID;
-
-        /// <summary>
-        /// The description that has been associated with this small
-        /// group.
-        /// </summary>
-        public string Description;
-
-        /// <summary>
-        /// A textual description of the schedule for this small
-        /// group.
-        /// </summary>
-        public string Schedule;
-
-        /// <summary>
-        /// The notes about this small group.
-        /// </summary>
-        public string Notes;
-
-        /// <summary>
-        /// The number of pending registrations for this
-        /// small group.
-        /// </summary>
-        public int? RegistrationCount;
-
-        /// <summary>
-        /// The total number of members in this small group.
-        /// </summary>
-        public int? MemberCount;
-
-        /// <summary>
-        /// The person who is considered the leader of this small
-        /// group.
-        /// </summary>
-        public RpcSmallGroupMemberReference Leader;
-
-        /// <summary>
-        /// The ID number of the area that this small group resides
-        /// in.
-        /// </summary>
-        public int? AreaID;
-
-        /// <summary>
-        /// The small groups custom website URL. This is not the same
-        /// as the NavigationUrl.
-        /// </summary>
-        public string Url;
-
-        /// <summary>
-        /// The name of the person that created this small group.
-        /// </summary>
-        public string CreatedBy;
-
-        /// <summary>
-        /// The date that this small group was created on.
-        /// </summary>
-        public DateTime? DateCreated;
-
-        /// <summary>
-        /// The name of the last person to have modified this small
-        /// group.
-        /// </summary>
-        public string ModifiedBy;
-
-        /// <summary>
-        /// The date on which this small group was last modified on.
-        /// </summary>
-        public DateTime? DateModified;
-
-        /// <summary>
-        /// The URL to be used for navigating to this small group
-        /// in a web browser.
-        /// </summary>
-        public string NavigationUrl;
-
-        /// <summary>
-        /// The URL that can be used to retrieve the picture for
-        /// this small group, if there is one.
-        /// </summary>
-        public string PictureUrl;
-
-        /// <summary>
-        /// The average age of the members of this small group.
-        /// </summary>
-        public double? AverageAge;
-
-        /// <summary>
-        /// The average distance from the Target Location of the
-        /// members of this small group.
-        /// </summary>
-        public decimal? Distance;
-
-        /// <summary>
-        /// The ID number of the address record that identifies the
-        /// location at which this small group meets at.
-        /// </summary>
-        public int? TargetLocationID;
-
-        /// <summary>
-        /// The lookup record which identifies the day(s) of the week
-        /// that this small group meets on.
-        /// </summary>
-        public RpcLookup MeetingDay;
-
-        /// <summary>
-        /// The lookup record which identifies the primary age range
-        /// of this small group.
-        /// </summary>
-        public RpcLookup PrimaryAge;
-
-        /// <summary>
-        /// The lookup record which identifies the suggested marital
-        /// status of this small group.
-        /// </summary>
-        public RpcLookup PrimaryMaritalStatus;
-
-        /// <summary>
-        /// The lookup record which identifies the topic of discussion
-        /// for this small group.
-        /// </summary>
-        public RpcLookup Topic;
-
-        /// <summary>
-        /// The maximum number of members that should be allowed in
-        /// this small group.
-        /// </summary>
-        public int MaximumMembers;
-
-		/// <summary>
-		/// Determines whether or not this small group is private or not.
-		/// </summary>
-		public bool Private;
-    }
 
     /// <summary>
     /// Identifies an Arena lookup value. Not all details are

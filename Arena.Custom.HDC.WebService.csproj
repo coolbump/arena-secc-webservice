@@ -63,9 +63,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Contracts\GenericListResult.cs" />
+    <Compile Include="Contracts\GenericReference.cs" />
     <Compile Include="Contracts\Lookup.cs" />
+    <Compile Include="Contracts\SmallGroup.cs" />
     <Compile Include="Contracts\SmallGroupCategory.cs" />
     <Compile Include="Contracts\SmallGroupCluster.cs" />
+    <Compile Include="Contracts\SmallGroupMember.cs" />
     <Compile Include="CoreRpc.cs">
     </Compile>
     <None Include="JSON.cs" />
@@ -74,6 +78,7 @@
     <Compile Include="RestApi.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SmallGroupAPI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="jsonrpc.ashx">

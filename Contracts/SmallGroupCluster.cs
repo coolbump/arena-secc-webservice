@@ -51,13 +51,13 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// Retrieve the level of this group cluster.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public int? Level;
+        public int? ClusterLevelID;
 
         /// <summary>
         /// Retrieve the cluster type of this group cluster.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public int? TypeID;
+        public int? ClusterTypeID;
 
         /// <summary>
         /// Description of this group cluster.
@@ -104,14 +104,14 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// this group cluster.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public RpcPersonReference? Admin;
+        public GenericReference Admin;
 
         /// <summary>
         /// The person who is considered the leader of
         /// this group cluster.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public RpcPersonReference? Leader;
+        public GenericReference Leader;
 
         /// <summary>
         /// The Area ID that this group cluster belongs to.
@@ -125,7 +125,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// website that might be outside the Arena system.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public string Url;
+        public string ClusterUrl;
 
         /// <summary>
         /// The name of the person who created this small group
@@ -184,10 +184,10 @@ namespace Arena.Custom.HDC.WebService.Contracts
                 return cluster;
 
             cluster.Active = arena.Active;
-            cluster.Admin = new RpcPersonReference(arena.Admin);
+            cluster.Admin = new GenericReference(arena.Admin);
             cluster.AreaID = arena.Area.AreaID;
             cluster.CategoryID = arena.ClusterType.CategoryID;
-            cluster.TypeID = arena.ClusterTypeID;
+            cluster.ClusterTypeID = arena.ClusterTypeID;
             cluster.CreatedBy = arena.CreatedBy;
             cluster.DateCreated = arena.DateCreated;
             cluster.DateModified = arena.DateModified;
@@ -196,8 +196,8 @@ namespace Arena.Custom.HDC.WebService.Contracts
             {
                 cluster.ImageUrl = this.BuildBlobUrl(arena.ImageBlob.GUID.ToString(), -1, Arena.Enums.Gender.Unknown);
             }
-            cluster.Leader = new RpcPersonReference(arena.Leader);
-            cluster.Level = arena.ClusterLevelID;
+            cluster.Leader = new GenericReference(arena.Leader);
+            cluster.ClusterLevelID = arena.ClusterLevelID;
             cluster.ModifiedBy = arena.ModifiedBy;
             cluster.Name = arena.Name;
             if (String.IsNullOrEmpty(arena.NavigationUrl) == false)
@@ -206,7 +206,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
                 cluster.Notes = arena.Notes;
             cluster.ParentClusterID = arena.ParentClusterID;
             if (String.IsNullOrEmpty(arena.ClusterUrl) == false)
-                cluster.Url = arena.ClusterUrl;
+                cluster.ClusterUrl = arena.ClusterUrl;
 
             //
             // Get the counts from Arena.
