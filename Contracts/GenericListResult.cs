@@ -2,15 +2,14 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.Serialization;
-using Arena.Services;
 
 namespace Arena.Custom.HDC.WebService.Contracts
 {
-    [DataContract(Namespace = "")]
-    public class GenericListResult
+    [DataContract(Namespace = "", Name = "GenericListResult")]
+    public class GenericListResult<T>
     {
 		[DataMember]
-		public List<GenericReference> Items { get; set; }
+		public List<T> Items { get; set; }
 		[DataMember]
 		public int Total { get; set; }
 		[DataMember]

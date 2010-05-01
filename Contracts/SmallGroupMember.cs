@@ -21,19 +21,19 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// number can be used to request more detailed information about
         /// the member as it is a standard PersonID.
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [DataMember()]
         public int PersonID;
 
         /// <summary>
         /// The name to be used when displaying the member's name in a list.
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [DataMember()]
         public string FullName;
 
         /// <summary>
         /// Identifies if this member is active in the small group.
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
+        [DataMember()]
         public bool Active;
 
         /// <summary>
@@ -45,8 +45,8 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// <summary>
         /// The uniform number if the small group supports uniform numbers.
         /// </summary>
-        [DataMember(EmitDefaultValue = false)]
-        public int UniformNumber = -1;
+        [DataMember()]
+        public int UniformNumber;
     }
 
     public class SmallGroupMemberMapper

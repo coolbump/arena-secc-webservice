@@ -69,6 +69,7 @@
     <Compile Include="Contracts\SmallGroup.cs" />
     <Compile Include="Contracts\SmallGroupCategory.cs" />
     <Compile Include="Contracts\SmallGroupCluster.cs" />
+    <Compile Include="Contracts\SmallGroupClusterType.cs" />
     <Compile Include="Contracts\SmallGroupMember.cs" />
     <Compile Include="CoreRpc.cs">
     </Compile>
