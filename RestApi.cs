@@ -137,6 +137,8 @@ namespace Arena.Custom.HDC.WebService
             RegisterObjectContractHandlers("/", api, api.GetType());
             api = new SmallGroupAPI();
             RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new PersonAPI();
+            RegisterObjectContractHandlers("/", api, api.GetType());
         }
 
 		/// <summary>

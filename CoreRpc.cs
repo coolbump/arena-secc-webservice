@@ -1088,30 +1088,5 @@ namespace Arena.Custom.HDC.WebService
         public RpcPeer[] Peers;
     }
 
-    /// <summary>
-    /// Identifies a single relationship to the person ID in this
-    /// structure. The specific type of relationship is identified
-    /// by the Relationship lookup member.
-    /// </summary>
-    public struct RpcRelationship
-    {
-        /// <summary>
-        /// Identifies the person by ID number of this relationship.
-        /// </summary>
-        public int PersonID;
-
-        /// <summary>
-        /// A string which identifies the formal name of this person, this
-        /// name can and should be used when displaying the name of the
-        /// person in a list to be chosen from for navigating to this person.
-        /// </summary>
-        public string FullName;
-
-        /// <summary>
-        /// The lookup which identifies a given relationship.
-        /// </summary>
-        public string Relationship;
-    }
-
     #endregion
 }
