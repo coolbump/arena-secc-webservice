@@ -62,11 +62,12 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="categoryID">The parent category to find all root clusters of.</param>
         /// <returns>Integer array of clusterIDs.</returns>
-        [WebGet(UriTemplate = "smgp/cluster/list?categoryID={categoryID}&clusterID={clusterID}")]
-        public Contracts.GenericListResult<Contracts.GenericReference> GetSmallGroupClusters(String categoryID, String clusterID)
+        [WebGet(UriTemplate = "smgp/cluster/list?categoryID={categoryID}&clusterID={clusterID}&start={start}&max={max}")]
+        public Contracts.GenericListResult<Contracts.GenericReference> GetSmallGroupClusters(String categoryID, String clusterID, int start, int max)
         {
             GroupClusterCollection clusters;
             Contracts.GenericListResult<Contracts.GenericReference> list = new Contracts.GenericListResult<Contracts.GenericReference>();
+            int i;
 
 
             if (categoryID != null)
@@ -83,15 +84,16 @@ namespace Arena.Custom.HDC.WebService
             else
                 throw new Exception("Required parameters not provided.");
 
-            list.Start = 0;
-            list.Max = list.Total = clusters.Count;
+            list.Start = start;
+            list.Max = max;
+            list.Total = clusters.Count;
             list.Items = new List<Contracts.GenericReference>();
             clusters.Sort(delegate(GroupCluster gc1, GroupCluster gc2) { return gc1.Name.CompareTo(gc2.Name); });
-            foreach (GroupCluster cluster in clusters)
+            for (i = start; i < clusters.Count && (max <= 0 || i < (start + max)); i++)
             {
-                if (RestApi.GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, cluster.GroupClusterID, OperationType.View) == true)
+                if (RestApi.GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, clusters[i].GroupClusterID, OperationType.View) == true)
                 {
-                    list.Items.Add(new Contracts.GenericReference(cluster));
+                    list.Items.Add(new Contracts.GenericReference(clusters[i]));
                 }
             }
 
@@ -145,22 +147,24 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="clusterID">The parent cluster to find small groups under.</param>
         /// <returns>An integer array of small groups under the parent cluster.</returns>
-        [WebGet(UriTemplate = "smgp/group/list?clusterID={clusterID}")]
-        public Contracts.GenericListResult<Contracts.GenericReference> GetSmallGroups(int clusterID)
+        [WebGet(UriTemplate = "smgp/group/list?clusterID={clusterID}&start={start}&max={max}")]
+        public Contracts.GenericListResult<Contracts.GenericReference> GetSmallGroups(int clusterID, int start, int max)
         {
             Contracts.GenericListResult<Contracts.GenericReference> list = new Contracts.GenericListResult<Contracts.GenericReference>();
             GroupCollection groups = new GroupCollection(clusterID);
+            int i;
 
 
             if (RestApi.GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, clusterID, OperationType.View) == false)
                 throw new Exception("Access denied.");
 
-            list.Start = 0;
-            list.Max = list.Total = groups.Count;
+            list.Start = start;
+            list.Max = max;
+            list.Total = groups.Count;
             list.Items = new List<Contracts.GenericReference>();
-            foreach (Group group in groups)
+            for (i = start; i < groups.Count && (max <= 0 || i < (start + max)); i++)
             {
-                list.Items.Add(new Contracts.GenericReference(group));
+                list.Items.Add(new Contracts.GenericReference(groups[i]));
             }
 
             return list;
@@ -215,7 +219,7 @@ namespace Arena.Custom.HDC.WebService
             list.Total = group.Members.Count;
             list.Items = new List<Contracts.SmallGroupMember>();
 
-            for (i = start; i < group.Members.Count && (max > 0 ? i < (start + max) : true); i++)
+            for (i = start; i < group.Members.Count && (max <= 0 || i < (start + max)); i++)
             {
                 list.Items.Add(mapper.FromArena(group.Members[i]));
             }
