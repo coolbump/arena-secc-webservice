@@ -218,9 +218,34 @@ namespace Arena.Custom.HDC.WebService.Contracts
 
     public class SmallGroupMapper : Arena.Services.Contracts.BaseMapper
     {
+        private List<string> _includeFields;
+
+
         public SmallGroupMapper()
         {
         }
+
+
+        public SmallGroupMapper(List<string> includeFields)
+        {
+            if (includeFields != null)
+            {
+                // Normalize for search
+                _includeFields = new List<string>();
+                foreach (string value in includeFields)
+                    _includeFields.Add(value.ToUpperInvariant());
+            }
+        }
+
+
+        private bool ShouldShow(string name)
+        {
+            if (_includeFields == null)
+                return true;
+
+            return _includeFields.Contains(name.ToUpperInvariant());
+        }
+
 
         public SmallGroup FromArena(Group arena)
         {
@@ -228,36 +253,95 @@ namespace Arena.Custom.HDC.WebService.Contracts
             LookupMapper lMapper = new LookupMapper();
 
 
-            group.GroupID = arena.GroupID;
-            group.Active = arena.Active;
-            group.AreaID = arena.AreaID;
-            group.AverageAge = arena.AverageAge;
-            group.CategoryID = arena.ClusterType.CategoryID;
-            group.GroupClusterID = arena.GroupClusterID;
-            group.CreatedBy = arena.CreatedBy;
-            group.DateCreated = arena.DateCreated;
-            group.DateModified = arena.DateModified;
-            group.Description = arena.Description;
-            group.Distance = arena.Distance;
-            group.Leader = new GenericReference(arena.Leader);
-            group.ClusterLevelID = arena.ClusterLevelID;
-            group.MaxMembers = arena.MaxMembers;
-            group.MeetingDay = lMapper.FromArena(arena.MeetingDay);
-            group.MemberCount = arena.Members.Count;
-            group.ModifiedBy = arena.ModifiedBy;
-            group.Name = arena.Name;
-            group.NavigationUrl = arena.NavigationUrl;
-            group.Notes = arena.Notes;
-            group.PictureUrl = arena.PictureUrl;
-            group.PrimaryAge = lMapper.FromArena(arena.PrimaryAge);
-            group.PrimaryMaritalStatus = lMapper.FromArena(arena.PrimaryMaritalStatus);
-            group.Private = arena.Private;
-            group.RegistrationCount = arena.RegistrationCount;
-            group.Schedule = arena.Schedule;
-            group.TargetLocationID = arena.TargetLocationID;
-            group.Topic = lMapper.FromArena(arena.Topic);
-            group.ClusterTypeID = arena.ClusterTypeID;
-            group.GroupUrl = arena.GroupUrl;
+            if (ShouldShow("GroupID") == true)
+                group.GroupID = arena.GroupID;
+
+            if (ShouldShow("Active") == true)
+                group.Active = arena.Active;
+
+            if (ShouldShow("AreaID") == true)
+                group.AreaID = arena.AreaID;
+
+            if (ShouldShow("AverageAge") == true)
+                group.AverageAge = arena.AverageAge;
+
+            if (ShouldShow("CategoryID") == true)
+                group.CategoryID = arena.ClusterType.CategoryID;
+
+            if (ShouldShow("GroupClusterID") == true)
+                group.GroupClusterID = arena.GroupClusterID;
+
+            if (ShouldShow("CreatedBy") == true)
+                group.CreatedBy = arena.CreatedBy;
+
+            if (ShouldShow("DateCreated") == true)
+                group.DateCreated = arena.DateCreated;
+
+            if (ShouldShow("DateModified") == true)
+                group.DateModified = arena.DateModified;
+
+            if (ShouldShow("Description") == true)
+                group.Description = arena.Description;
+
+            if (ShouldShow("Distance") == true)
+                group.Distance = arena.Distance;
+
+            if (ShouldShow("Leader") == true)
+                group.Leader = new GenericReference(arena.Leader);
+
+            if (ShouldShow("ClusterLevelID") == true)
+                group.ClusterLevelID = arena.ClusterLevelID;
+
+            if (ShouldShow("MaxMembers") == true)
+                group.MaxMembers = arena.MaxMembers;
+
+            if (ShouldShow("MeetingDay") == true)
+                group.MeetingDay = lMapper.FromArena(arena.MeetingDay);
+
+            if (ShouldShow("MemberCount") == true)
+                group.MemberCount = arena.Members.Count;
+
+            if (ShouldShow("Modifiedby") == true)
+                group.ModifiedBy = arena.ModifiedBy;
+
+            if (ShouldShow("Name") == true)
+                group.Name = arena.Name;
+
+            if (ShouldShow("NavigationUrl") == true)
+                group.NavigationUrl = arena.NavigationUrl;
+
+            if (ShouldShow("Notes") == true)
+                group.Notes = arena.Notes;
+
+            if (ShouldShow("PicutreUrl") == true)
+                group.PictureUrl = arena.PictureUrl;
+
+            if (ShouldShow("PrimaryAge") == true)
+                group.PrimaryAge = lMapper.FromArena(arena.PrimaryAge);
+
+            if (ShouldShow("PrimaryMaritalStatus") == true)
+                group.PrimaryMaritalStatus = lMapper.FromArena(arena.PrimaryMaritalStatus);
+
+            if (ShouldShow("Private") == true)
+                group.Private = arena.Private;
+
+            if (ShouldShow("RegistrationCount") == true)
+                group.RegistrationCount = arena.RegistrationCount;
+
+            if (ShouldShow("Schedule") == true)
+                group.Schedule = arena.Schedule;
+
+            if (ShouldShow("TargetLocationID") == true)
+                group.TargetLocationID = arena.TargetLocationID;
+
+            if (ShouldShow("Topic") == true)
+                group.Topic = lMapper.FromArena(arena.Topic);
+
+            if (ShouldShow("ClusterTypeID") == true)
+                group.ClusterTypeID = arena.ClusterTypeID;
+
+            if (ShouldShow("GroupUrl") == true)
+                group.GroupUrl = arena.GroupUrl;
 
             return group;
         }

@@ -447,8 +447,15 @@ namespace Arena.Custom.HDC.WebService
 					else if (templateMatch.BoundVariables.AllKeys.Contains(pi.Name.ToUpper()) == true)
 					{
 						p = templateMatch.BoundVariables[pi.Name.ToUpper()];
-						if (p != null)
-							p = Convert.ChangeType(p, pi.ParameterType);
+                        if (p != null)
+                        {
+                            if (typeof(List<String>).IsAssignableFrom(pi.ParameterType))
+                            {
+                                p = p.ToString().Split(new char[1] { ',' }).ToList<String>();
+                            }
+                            else
+                                p = Convert.ChangeType(p, pi.ParameterType);
+                        }
 					}
 					else
 						p = null;
