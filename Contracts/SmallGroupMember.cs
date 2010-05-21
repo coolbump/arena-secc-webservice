@@ -31,6 +31,12 @@ namespace Arena.Custom.HDC.WebService.Contracts
         public string FullName;
 
         /// <summary>
+        /// The small group that this membership information is for.
+        /// </summary>
+        [DataMember()]
+        public GenericReference Group;
+
+        /// <summary>
         /// Identifies if this member is active in the small group.
         /// </summary>
         [DataMember()]
@@ -65,7 +71,8 @@ namespace Arena.Custom.HDC.WebService.Contracts
             member.FullName = arena.FullName;
             member.Active = arena.Active;
             member.Role = lMapper.FromArena(arena.Role);
-            if (new Group(arena.GroupID).ClusterType.Category.UseUniformNumber == true)
+            member.Group = new GenericReference(g);
+            if (g.ClusterType.Category.UseUniformNumber == true)
                 member.UniformNumber = arena.UniformNumber;
 
             return member;

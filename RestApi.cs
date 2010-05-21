@@ -440,25 +440,31 @@ namespace Arena.Custom.HDC.WebService
 				//
 				foreach (ParameterInfo pi in rmi.methodInfo.GetParameters())
 				{
-					if (typeof(Stream).IsAssignableFrom(pi.ParameterType))
-					{
-						p = context.Request.InputStream;
-					}
-					else if (templateMatch.BoundVariables.AllKeys.Contains(pi.Name.ToUpper()) == true)
-					{
-						p = templateMatch.BoundVariables[pi.Name.ToUpper()];
-                        if (p != null)
-                        {
-                            if (typeof(List<String>).IsAssignableFrom(pi.ParameterType))
-                            {
-                                p = p.ToString().Split(new char[1] { ',' }).ToList<String>();
-                            }
-                            else
-                                p = Convert.ChangeType(p, pi.ParameterType);
+                    try
+                    {
+                        p = null;
+					    if (typeof(Stream).IsAssignableFrom(pi.ParameterType))
+					    {
+						    p = context.Request.InputStream;
                         }
-					}
-					else
-						p = null;
+					    else if (templateMatch.BoundVariables.AllKeys.Contains(pi.Name.ToUpper()) == true)
+					    {
+						    p = templateMatch.BoundVariables[pi.Name.ToUpper()];
+                            if (p != null)
+                            {
+                                if (typeof(List<String>).IsAssignableFrom(pi.ParameterType))
+                                {
+                                    p = p.ToString().Split(new char[1] { ',' }).ToList<String>();
+                                }
+                                else
+                                    p = Convert.ChangeType(p, pi.ParameterType);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        p = null;
+                    }
 
 					finalParameters.Add(p);
 				}

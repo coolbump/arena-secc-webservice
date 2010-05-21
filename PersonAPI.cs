@@ -12,10 +12,9 @@ namespace Arena.Custom.HDC.WebService
     class PersonAPI
     {
         /// <summary>
-        /// Retrieve a list of all group categories in the system. If, by chance,
-        /// no categories exist then an empty array is returned.
+        /// Retrieve a list of all person relationships for the given person ID.
         /// </summary>
-        /// <returns>Integer array of group categoryIDs.</returns>
+        /// <returns>List of PersonRelationship objects.</returns>
         [WebGet(UriTemplate = "person/{id}/relationships")]
         public Contracts.GenericListResult<Contracts.PersonRelationship> GetPersonRelationships(int id)
         {
@@ -32,6 +31,90 @@ namespace Arena.Custom.HDC.WebService
             {
                 list.Items.Add(mapper.FromArena(relationship));
             }
+
+            return list;
+        }
+
+
+        /// <summary>
+        /// Retrieve a list of all small group membership for the person.
+        /// Security is taken into consideration, so if the logged in user does not
+        /// have permission to see the group, it will not be returned.
+        /// </summary>
+        /// <returns>GenericListResult of SmallGroupMember objects.</returns>
+        [WebGet(UriTemplate = "person/{id}/groupmembership")]
+        public Contracts.GenericListResult<Contracts.SmallGroupMember> GetPersonSmallGroupMembership(int id)
+        {
+            Contracts.GenericListResult<Contracts.SmallGroupMember> list = new Contracts.GenericListResult<Contracts.SmallGroupMember>();
+            Contracts.SmallGroupMemberMapper mapper = new Contracts.SmallGroupMemberMapper();
+            Contracts.SmallGroupMember member;
+            CategoryCollection cc = new CategoryCollection();
+            GroupCollection gc = new GroupCollection();
+            GroupMember gm;
+
+
+            //
+            // If they are requesting membership for a person, get the list
+            // of groups this person is a member of. Does not return groups
+            // this person is a leader of.
+            //
+            list.Items = new List<Contracts.SmallGroupMember>();
+            foreach (Category c in cc)
+            {
+                gc = new GroupCollection();
+                gc.LoadByPersonID(id, c.CategoryID);
+
+                foreach (Group g in gc)
+                {
+                    if (RestApi.GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, g.GroupClusterID, OperationType.View) == false)
+                        continue;
+
+                    gm = new GroupMember(g.GroupID, id);
+                    member = mapper.FromArena(new GroupMember(g.GroupID, id));
+                    if (member.Group.ID == -1)
+                        continue;
+
+                    list.Items.Add(mapper.FromArena(gm));
+                }
+            }
+
+            list.Total = list.Max = list.Items.Count;
+            list.Start = 0;
+
+            return list;
+        }
+
+
+        /// <summary>
+        /// Retrieve a list of all small groups that this person is a leader of.
+        /// Security is taken into consideration, so if the logged in user does not
+        /// have permission to see the group, it will not be returned.
+        /// </summary>
+        /// <returns>GenericListResult of SmallGroupMember objects.</returns>
+        [WebGet(UriTemplate = "person/{id}/groupleadership")]
+        public Contracts.GenericListResult<Contracts.GenericReference> GetPersonSmallGroupLeadership(int id)
+        {
+            Contracts.GenericListResult<Contracts.GenericReference> list = new Contracts.GenericListResult<Contracts.GenericReference>();
+            GroupCollection gc = new GroupCollection();
+
+
+            //
+            // If they are requesting membership for a person, get the list
+            // of groups this person is a member of. Does not return groups
+            // this person is a leader of.
+            //
+            list.Items = new List<Contracts.GenericReference>();
+            gc.LoadByLeaderPersonID(id);
+            foreach (Group g in gc)
+            {
+                if (RestApi.GroupClusterOperationAllowed(ArenaContext.Current.Person.PersonID, g.GroupClusterID, OperationType.View) == false)
+                    continue;
+
+                list.Items.Add(new Contracts.GenericReference(g));
+            }
+
+            list.Total = list.Max = list.Items.Count;
+            list.Start = 0;
 
             return list;
         }

@@ -226,6 +226,5 @@ namespace Arena.Custom.HDC.WebService
 
             return list;
         }
-
     }
 }
