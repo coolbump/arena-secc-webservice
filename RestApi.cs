@@ -108,7 +108,6 @@ namespace Arena.Custom.HDC.WebService
 	public class RestApi : IHttpHandler
 	{
 		ArrayList registeredHandlers = null;
-		StringBuilder initLog = new StringBuilder();
 
 
 		#region Handler registration code
@@ -159,13 +158,6 @@ namespace Arena.Custom.HDC.WebService
 				sb.AppendLine(rmi.uriTemplate.ToString());
 			}
 			sb.AppendLine("");
-
-			if (showLog == 1)
-			{
-				sb.AppendLine("Log:");
-				sb.AppendLine(initLog.ToString());
-				sb.AppendLine("");
-			}
 
 			return new MemoryStream(ASCIIEncoding.Default.GetBytes(sb.ToString()));
 		}
@@ -219,23 +211,6 @@ namespace Arena.Custom.HDC.WebService
 			instance = asm.CreateInstance(namespaceName + "." + className);
 			if (instance == null)
 				throw new Exception("Cannot instantiate service");
-			Type t = asm.GetType(namespaceName + "." + className);
-			if (t == null)
-				throw new Exception("Frank did it");
-			while (t != null)
-			{
-				initLog.AppendLine("Checking type " + t.ToString());
-				foreach (MethodInfo mi in t.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy))
-				{
-					initLog.AppendLine(mi.Name);
-					foreach (Object o in System.Attribute.GetCustomAttributes(mi, true))
-					{
-						initLog.AppendLine(mi.Name + "[" + o.ToString() + "]");
-					}
-				}
-				t = t.BaseType;
-			}
-
 			//
 			// If this object is a subclass of the RestServiceApi then call
 			// the standard registration handler method which allows a subclass
@@ -299,25 +274,17 @@ namespace Arena.Custom.HDC.WebService
 			if (baseUrl.Length > 0 && baseUrl[baseUrl.Length - 1] == '/')
 				baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
 
-			foreach (MethodInfo mi in objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy))
+			foreach (MethodInfo mi in objectType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy))
 			{
-				Object[] attribs;
 				WebGetAttribute[] webgets;
 				WebInvokeAttribute[] webinvokes;
 				String url;
 
-				initLog.AppendLine("Checking method " + mi.Name);
 				//
 				// Get any "WebGet" attributes for this method.
 				//
-				attribs = (Object[])mi.GetCustomAttributes(false);
-				foreach (Object attr in attribs)
-				{
-					initLog.AppendLine("  Found attribute " + attr.ToString());
-				}
 
 				webgets = (WebGetAttribute[])mi.GetCustomAttributes(typeof(WebGetAttribute), true);
-				initLog.AppendLine("  Found " + webgets.Length.ToString() + " get attributes");
 				if (webgets.Length > 0)
 				{
 					url = webgets[0].UriTemplate;
