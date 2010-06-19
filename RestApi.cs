@@ -132,7 +132,11 @@ namespace Arena.Custom.HDC.WebService
 			RegisterObjectContractHandlers("/", this, this.GetType());
 
             Object api;
-            api = new CoreRpc();
+//            api = new CoreRpc();
+//            RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new SystemAPI();
+            RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new ProfileAPI();
             RegisterObjectContractHandlers("/", api, api.GetType());
             api = new SmallGroupAPI();
             RegisterObjectContractHandlers("/", api, api.GetType());

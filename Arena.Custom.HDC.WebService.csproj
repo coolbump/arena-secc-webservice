@@ -67,21 +67,26 @@
     <Compile Include="Contracts\GenericReference.cs" />
     <Compile Include="Contracts\Lookup.cs" />
     <Compile Include="Contracts\PersonRelationship.cs" />
+    <Compile Include="Contracts\Profile.cs" />
+    <Compile Include="Contracts\ProfileMember.cs" />
     <Compile Include="Contracts\SmallGroup.cs" />
     <Compile Include="Contracts\SmallGroupCategory.cs" />
     <Compile Include="Contracts\SmallGroupCluster.cs" />
     <Compile Include="Contracts\SmallGroupClusterType.cs" />
     <Compile Include="Contracts\SmallGroupMember.cs" />
+    <Compile Include="Contracts\SystemVersion.cs" />
     <Compile Include="CoreRpc.cs">
     </Compile>
     <None Include="JSON.cs" />
     <None Include="JsonRpc.cs" />
     <Compile Include="PersonAPI.cs" />
+    <Compile Include="ProfileAPI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RestApi.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="SmallGroupAPI.cs" />
+    <Compile Include="SystemAPI.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="jsonrpc.ashx">

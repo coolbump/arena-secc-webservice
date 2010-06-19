@@ -40,5 +40,11 @@ namespace Arena.Custom.HDC.WebService.Contracts
             ID = arena.GroupID;
             Title = arena.Name;
         }
+
+        public GenericReference(Core.Profile arena)
+        {
+            ID = arena.ProfileID;
+            Title = arena.Name;
+        }
     }
 }

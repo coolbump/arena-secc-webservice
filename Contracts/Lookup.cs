@@ -9,6 +9,12 @@ namespace Arena.Custom.HDC.WebService.Contracts
     [DataContract(Namespace = "")]
     public class Lookup
     {
+        public Lookup(Core.Lookup arena)
+        {
+            ID = arena.LookupID;
+            Value = arena.ToString();
+        }
+
         [DataMember(EmitDefaultValue = false)]
         public int? ID { get; set; }
 
@@ -24,13 +30,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
 
         public Lookup FromArena(Core.Lookup arena)
         {
-            Lookup lookup = new Lookup();
-
-
-            lookup.ID = arena.LookupID;
-            lookup.Value = arena.ToString();
-
-            return lookup;
+            return new Lookup(arena);
         }
     }
 }
