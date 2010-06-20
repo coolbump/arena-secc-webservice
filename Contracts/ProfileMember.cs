@@ -11,7 +11,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
     /// member of a profile.
     /// </summary>
     [DataContract(Namespace = "")]
-    public struct ProfileMember
+    public class ProfileMember
     {
         /// <summary>
         /// Create a new ProfileMember contract that can be sent to
@@ -23,10 +23,14 @@ namespace Arena.Custom.HDC.WebService.Contracts
             Profile = new GenericReference(new Core.Profile(arena.ProfileID));
             Person = new GenericReference(arena);
             AttendanceCount = arena.AttendanceCount;
-            DateActive = arena.DateActive;
-            DateDormant = arena.DateDormant;
-            DateInReview = arena.DateInReview;
-            DatePending = arena.DatePending;
+            if (arena.DateActive.Year != 9999)
+                DateActive = arena.DateActive;
+            if (arena.DateDormant.Year != 9999)
+                DateDormant = arena.DateDormant;
+            if (arena.DateInReview.Year != 9999)
+                DateInReview = arena.DateInReview;
+            if (arena.DatePending.Year != 9999)
+                DatePending = arena.DatePending;
             MemberNotes = arena.MemberNotes;
             Source = new Lookup(arena.Source);
             Status = new Lookup(arena.Status);

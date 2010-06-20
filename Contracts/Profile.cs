@@ -72,7 +72,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// The Campus ID this profile is to the associated with.
         /// </summary>
         [DataMember(EmitDefaultValue = false)]
-        public int CampusID;
+        public int CampusID = -1;
 
         /// <summary>
         /// User entered notes about this profile.
@@ -198,10 +198,22 @@ namespace Arena.Custom.HDC.WebService.Contracts
 
         private bool ShouldShow(string name)
         {
+            bool status = false;
+
             if (_includeFields == null)
                 return true;
 
-            return _includeFields.Contains(name.ToUpperInvariant());
+            if (_includeFields.Contains("*"))
+            {
+                status = true;
+
+                if (_includeFields.Contains(String.Concat("-", name.ToUpperInvariant())))
+                    status = false;
+            }
+            else if (_includeFields.Contains(name.ToUpperInvariant()))
+                status = true;
+
+            return status;
         }
 
 
@@ -234,7 +246,7 @@ namespace Arena.Custom.HDC.WebService.Contracts
             if (ShouldShow("ProfileMemberCount") == true)
                 profile.ProfileMemberCount = arena.ProfileMemberCount;
 
-            if (ShouldShow("CampusID") == true)
+            if (ShouldShow("CampusID") == true && arena.Campus != null)
                 profile.CampusID = arena.Campus.CampusId;
 
             if (ShouldShow("Notes") == true)

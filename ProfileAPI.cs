@@ -16,12 +16,17 @@ namespace Arena.Custom.HDC.WebService
         /// </summary>
         /// <param name="profileID">The parent profile to find all child profiles of.</param>
         /// <param name="profileType">Retrieve a list of root profiles of this type.</param>
-        /// <returns>Integer array of clusterIDs.</returns>
-        [WebGet(UriTemplate = "profile/list?profileID={profileID}&profileType={profileType}&start={start}&max={max}")]
-        public Contracts.GenericListResult<Contracts.GenericReference> GetProfileList(String profileID, String profileType, int start, int max)
+        /// <param name="start">The number at which to start retrieving records.</param>
+        /// <param name="max">The number of records to return.</param>
+        /// <param name="fields">If supplied, the result is an array of Profile contracts with only the supplied fields.</param>
+        /// <returns>GenericListResult that contains either GenericReference objects or Profile objects.</returns>
+        [WebGet(UriTemplate = "profile/list?profileID={profileID}&profileType={profileType}&start={start}&max={max}&fields={fields}")]
+        public Object GetProfileList(String profileID, String profileType, int start, int max, String fields)
         {
             ProfileCollection profiles = null;
-            Contracts.GenericListResult<Contracts.GenericReference> list = new Contracts.GenericListResult<Contracts.GenericReference>();
+            Contracts.ProfileMapper mapper = null;
+            Contracts.GenericListResult<Contracts.Profile> listP = new Contracts.GenericListResult<Contracts.Profile>();
+            Contracts.GenericListResult<Contracts.GenericReference> listR = new Contracts.GenericListResult<Contracts.GenericReference>();
             int i;
 
 
@@ -43,22 +48,50 @@ namespace Arena.Custom.HDC.WebService
             else
                 throw new Exception("Required parameters not provided.");
 
-            list.Start = start;
-            list.Max = max;
-            list.Total = 0;
-            list.Items = new List<Contracts.GenericReference>();
+            //
+            // Sort the list of profiles and determine if we are going to
+            // be returning references or full objects.
+            //
             profiles.Sort(delegate(Profile p1, Profile p2) { return p1.Name.CompareTo(p2.Name); });
+            mapper = (string.IsNullOrEmpty(fields) ? null : new Contracts.ProfileMapper(new List<string>(fields.Split(','))));
+
+            //
+            // Prepare the appropraite list object.
+            //
+            if (mapper != null)
+            {
+                listP.Start = start;
+                listP.Max = max;
+                listP.Total = 0;
+                listP.Items = new List<Contracts.Profile>();
+            }
+            else
+            {
+                listR.Start = start;
+                listR.Max = max;
+                listR.Total = 0;
+                listR.Items = new List<Contracts.GenericReference>();
+            }
             for (i = 0; i < profiles.Count; i++)
             {
                 if (RestApi.ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profiles[i].ProfileID, OperationType.View) == false)
                     continue;
 
-                if (list.Total >= start && (max <= 0 ? true : list.Items.Count < max))
-                    list.Items.Add(new Contracts.GenericReference(profiles[i]));
-                list.Total += 1;
+                if (mapper != null)
+                {
+                    if (listP.Total >= start && (max <= 0 ? true : listP.Items.Count < max))
+                        listP.Items.Add(mapper.FromArena(profiles[i]));
+                    listP.Total += 1;
+                }
+                else
+                {
+                    if (listR.Total >= start && (max <= 0 ? true : listR.Items.Count < max))
+                       listR.Items.Add(new Contracts.GenericReference(profiles[i]));
+                    listR.Total += 1;
+                }
             }
 
-            return list;
+            return (mapper != null ? (Object)listP : (Object)listR);
         }
 
         /// <summary>
@@ -93,7 +126,7 @@ namespace Arena.Custom.HDC.WebService
         /// <param name="start">The 0-based index to start retrieving at.</param>
         /// <param name="max">The maximum number of members to retrieve.</param>
         /// <returns>GenericListResult of ProfileMember objects.</returns>
-        [WebGet(UriTemplate = "profile/{profileID}/members?statusID={statusID}&start={start}&max={max}")]
+        [WebGet(UriTemplate = "profile/{profileID}/members/list?statusID={statusID}&start={start}&max={max}")]
         public Contracts.GenericListResult<Contracts.ProfileMember> GetProfileMembers(int profileID, String statusID, int start, int max)
         {
             Contracts.GenericListResult<Contracts.ProfileMember> list = new Contracts.GenericListResult<Contracts.ProfileMember>();
@@ -131,5 +164,28 @@ namespace Arena.Custom.HDC.WebService
 
             return list;
         }
+
+        /// <summary>
+        /// Retrieve a single member of a profile. If the profile is not
+        /// found, or no access is permitted to the profile, then
+        /// an exception is thrown to the client.
+        /// </summary>
+        /// <param name="profileID">The ID number of the profile to look up.</param>
+        /// <returns>Basic information about the profile.</returns>
+        [WebGet(UriTemplate = "profile/{profileID}/members/{personID}")]
+        public Contracts.ProfileMember GetProfileMember(int profileID, int personID)
+        {
+            ProfileMember member = new ProfileMember(profileID, personID);
+
+
+            if (member.ProfileID == -1)
+                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid profile ID");
+
+            if (RestApi.ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, member.ProfileID, OperationType.View) == false)
+                throw new Exception("Access denied.");
+
+            return new Contracts.ProfileMember(member);
+        }
+
     }
 }

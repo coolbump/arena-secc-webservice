@@ -14,11 +14,16 @@ namespace Arena.Custom.HDC.WebService.Contracts
     [DataContract(Namespace = "")]
     public class SystemVersion
     {
+        /// <summary>
+        /// Build the information contained in the SystemVersion class.
+        /// At some point we should probably have a .h file that the Assembly
+        /// file includes as well to set version information.
+        /// </summary>
         public SystemVersion()
         {
-            arenaVersion = ArenaContext.Current.GetType().Assembly.GetName().Version.ToString();
-            databaseVersion = new Arena.DataLayer.Utility.Database().GetArenaDatabaseVersion();
-            apiVersion = "0.4";
+            ArenaVersion = ArenaContext.Current.GetType().Assembly.GetName().Version.ToString();
+            DatabaseVersion = new Arena.DataLayer.Utility.Database().GetArenaDatabaseVersion();
+            ApiVersion = "0.4";
         }
 
         /// <summary>
@@ -26,14 +31,14 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// the format of major.minor.revision.build, e.g. 2009.2.400.1401
         /// </summary>
         [DataMember()]
-        public string arenaVersion;
+        public string ArenaVersion;
 
         /// <summary>
         /// This variable contains the Arena Database version as a string, in
         /// the format of major.minor.revision.build, e.g. 2009.2.400.01401
         /// </summary>
         [DataMember()]
-        public string databaseVersion;
+        public string DatabaseVersion;
 
         /// <summary>
         /// This variable contains the API version as a string, in the format
@@ -41,6 +46,6 @@ namespace Arena.Custom.HDC.WebService.Contracts
         /// should be considered to be 0.4.0.0).
         /// </summary>
         [DataMember()]
-        public string apiVersion;
+        public string ApiVersion;
     }
 }
