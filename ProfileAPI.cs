@@ -2,8 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.ServiceModel.Web;
 using Arena.Core;
+using Arena.DataLayer.Core;
 using Arena.Security;
 
 namespace Arena.Custom.HDC.WebService
@@ -127,7 +129,8 @@ namespace Arena.Custom.HDC.WebService
         /// <param name="max">The maximum number of members to retrieve.</param>
         /// <returns>GenericListResult of ProfileMember objects.</returns>
         [WebGet(UriTemplate = "profile/{profileID}/members/list?statusID={statusID}&start={start}&max={max}")]
-        public Contracts.GenericListResult<Contracts.ProfileMember> GetProfileMembers(int profileID, String statusID, int start, int max)
+        public Contracts.GenericListResult<Contracts.ProfileMember>
+            GetProfileMembers(int profileID, String statusID, int start, int max)
         {
             Contracts.GenericListResult<Contracts.ProfileMember> list = new Contracts.GenericListResult<Contracts.ProfileMember>();
             Profile profile = new Profile(profileID);
@@ -187,5 +190,53 @@ namespace Arena.Custom.HDC.WebService
             return new Contracts.ProfileMember(member);
         }
 
+        /// <summary>
+        /// Retrieves the activity for the person in the given profile. Optionally
+        /// the list can be limited to a specified number of records to support
+        /// pagination while loading.
+        /// </summary>
+        /// <param name="profileID">The profile ID to load the primary activity for.</param>
+        /// <param name="personID">The person to load the activity of.</param>
+        /// <param name="start">Optional starting index to begin loading at.</param>
+        /// <param name="max">Maximum number of records to load in this call.</param>
+        /// <returns></returns>
+        [WebGet(UriTemplate = "profile/{profileID}/members/{personID}/activity/list?start={start}&max={max}")]
+        public Contracts.GenericListResult<Contracts.ProfileMemberActivity>
+            GetProfileMemberActivity(int profileID, int personID, int start, int max)
+        {
+            Contracts.GenericListResult<Contracts.ProfileMemberActivity> list = new Contracts.GenericListResult<Contracts.ProfileMemberActivity>();
+            Profile profile = new Profile(profileID);
+            DataTable dt;
+            int i;
+
+
+            //
+            // Check if the profile exists.
+            //
+            if (profile.ProfileID == -1)
+                throw new Arena.Services.Exceptions.ResourceNotFoundException("Invalid profile ID");
+
+            //
+            // Check if the user has access to work with the profile.
+            //
+            if (RestApi.ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, profile.ProfileID, OperationType.View) == false)
+                throw new Exception("Access denied.");
+
+            dt = new ProfileMemberActivityData().GetProfileMemberActivityDetails_DT(RestApi.DefaultOrganizationID(), profile.ProfileType, profile.Owner.PersonID, personID);
+            list.Start = start;
+            list.Max = max;
+            list.Items = new List<Contracts.ProfileMemberActivity>();
+            for (i = 0; i < dt.Rows.Count; i++)
+            {
+                if (RestApi.ProfileOperationAllowed(ArenaContext.Current.Person.PersonID, Convert.ToInt32(dt.Rows[i]["profile_id"]), OperationType.View) == false)
+                    continue;
+
+                if (list.Total >= start && (max <= 0 ? true : list.Items.Count < max))
+                    list.Items.Add(new Contracts.ProfileMemberActivity(dt.Rows[i]));
+                list.Total += 1;
+            }
+
+            return list;
+        }
     }
 }

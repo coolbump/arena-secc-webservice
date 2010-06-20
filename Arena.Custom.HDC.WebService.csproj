@@ -69,6 +69,7 @@
     <Compile Include="Contracts\PersonRelationship.cs" />
     <Compile Include="Contracts\Profile.cs" />
     <Compile Include="Contracts\ProfileMember.cs" />
+    <Compile Include="Contracts\ProfileMemberActivity.cs" />
     <Compile Include="Contracts\SmallGroup.cs" />
     <Compile Include="Contracts\SmallGroupCategory.cs" />
     <Compile Include="Contracts\SmallGroupCluster.cs" />
