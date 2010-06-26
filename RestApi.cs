@@ -459,9 +459,9 @@ namespace Arena.Custom.HDC.WebService
 					rmi.uriTemplate.ToString() != "/help" &&
 					rmi.methodInfo.GetCustomAttributes(typeof(RestApiAnonymous), true).Length == 0)
 				{
-					String PathAndQuery = context.Request.RawUrl;
+					String PathAndQuery = context.Request.RawUrl.ToLower();
 
-					PathAndQuery = context.Request.RawUrl.Substring(context.Request.FilePath.Length + 1);
+					PathAndQuery = PathAndQuery.Substring(context.Request.FilePath.Length + 1);
 					AuthenticationManager.SetupSessionForRequest(context.Request.QueryString["api_session"], false);
 					AuthenticationManager.VerifySignature(context.Request.Url, PathAndQuery, context.Request.QueryString["api_session"]);
 				}
