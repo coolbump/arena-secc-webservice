@@ -12,7 +12,10 @@ namespace Arena.Custom.HDC.WebService
     class PersonAPI
     {
         /// <summary>
+        /// <b>GET person/{id}/relationships</b>
+        ///
         /// Retrieve a list of all person relationships for the given person ID.
+        /// \since 1.0.0
         /// </summary>
         /// <returns>List of PersonRelationship objects.</returns>
         [WebGet(UriTemplate = "person/{id}/relationships")]
