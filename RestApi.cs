@@ -76,25 +76,8 @@ namespace Arena.Custom.HDC.WebService
 		}
 	}
 
-	public class CustomServiceApi : RestServiceApi
-	{
-		[WebGet(UriTemplate = "/version")]
-		[RestApiAnonymous]
-		public Version Version()
-		{
-			Version v = new Version();
-			v.Number = "1.0.2";
-			return v;
-		}
-		[WebGet(UriTemplate = "/fault")]
-		[RestApiAnonymous]
-		public void Fault()
-		{
-			throw new Exception("This is an exception");
-		}
-	}
 
-	/// <summary>
+    /// <summary>
 	/// The NoOp interface is a junk interface, it does nothing except
 	/// provide a means for creating an OperationContract.
 	/// </summary>
@@ -129,11 +112,25 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterInternalHandlers()
 		{
-			RegisterObjectContractHandlers("/", this, this.GetType());
+			RegisterObjectContractHandlers("/rc", this, this.GetType());
 
             Object api;
 //            api = new CoreRpc();
 //            RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new SystemAPI();
+            RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
+            api = new ProfileAPI();
+            RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
+            api = new SmallGroupAPI();
+            RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
+            api = new PersonAPI();
+            RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
+
+            //
+            // Deprecated: Register at old handler address for a version so that
+            // people who still run the old iPhone app don't break instantly.
+            //
+            RegisterObjectContractHandlers("/", this, this.GetType());
             api = new SystemAPI();
             RegisterObjectContractHandlers("/", api, api.GetType());
             api = new ProfileAPI();
@@ -144,7 +141,22 @@ namespace Arena.Custom.HDC.WebService
             RegisterObjectContractHandlers("/", api, api.GetType());
         }
 
-		/// <summary>
+
+        /// <summary>
+        /// Retrieves the version of the API system.
+        /// </summary>
+        /// <returns>Version object.</returns>
+        [WebGet(UriTemplate = "/version")]
+        [RestApiAnonymous]
+        public Version Version()
+        {
+            Version v = new Version();
+            v.Number = "1.0.2";
+            return v;
+        }
+        
+        
+        /// <summary>
 		/// Ths is a debug method that provides information about what is
 		/// registered and the registration log.
 		/// </summary>
@@ -173,15 +185,6 @@ namespace Arena.Custom.HDC.WebService
 		/// </summary>
 		void RegisterExternalHandlers()
 		{
-			String assemblyName, namespaceName, className;
-
-
-			assemblyName = "Arena.Custom.HDC.WebService";
-			namespaceName = "Arena.Custom.HDC.WebService";
-			className = "CustomServiceApi";
-
-			RegisterExternalClass("/", assemblyName, namespaceName, className);
-
 			RegisterExternalClass("/", "Arena.Services", "Arena.Services", "ArenaAPI");
 		}
 
