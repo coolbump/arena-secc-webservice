@@ -46,5 +46,18 @@ namespace Arena.Custom.HDC.WebService.Contracts
             ID = arena.ProfileID;
             Title = arena.Name;
         }
+
+        public GenericReference(Arena.Event.EventProfile arena)
+        {
+            ID = Convert.ToInt32(arena.ProfileID);
+            Title = arena.Title;
+        }
+
+        /// <summary>
+        /// Parameterless constructor for serialization
+        /// </summary>
+        public GenericReference()
+        {
+        }
     }
 }

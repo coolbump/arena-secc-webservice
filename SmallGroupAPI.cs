@@ -72,7 +72,7 @@ namespace Arena.Custom.HDC.WebService
 
             if (categoryID != null)
             {
-                clusters = new GroupClusterCollection(Convert.ToInt32(categoryID), Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]));
+                clusters = new GroupClusterCollection(Convert.ToInt32(categoryID), Convert.ToInt32(ConfigurationManager.AppSettings["Organization"]));
             }
             else if (clusterID != null)
             {

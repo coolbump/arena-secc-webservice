@@ -263,7 +263,7 @@ namespace Arena.Custom.HDC.WebService
         /// <returns>An integer indicating the organization ID.</returns>
         static public int DefaultOrganizationID()
         {
-            return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
+            return Convert.ToInt32(ConfigurationManager.AppSettings["Organization"]);
         }
 
         /// <summary>

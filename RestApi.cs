@@ -125,20 +125,16 @@ namespace Arena.Custom.HDC.WebService
             RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
             api = new PersonAPI();
             RegisterObjectContractHandlers("/cust/rc", api, api.GetType());
-
-            //
-            // Deprecated: Register at old handler address for a version so that
-            // people who still run the old iPhone app don't break instantly.
-            //
-            RegisterObjectContractHandlers("/", this, this.GetType());
-            api = new SystemAPI();
-            RegisterObjectContractHandlers("/", api, api.GetType());
-            api = new ProfileAPI();
-            RegisterObjectContractHandlers("/", api, api.GetType());
-            api = new SmallGroupAPI();
-            RegisterObjectContractHandlers("/", api, api.GetType());
-            api = new PersonAPI();
-            RegisterObjectContractHandlers("/", api, api.GetType());
+            api = new SECC.PersonAttributeAPI();
+            RegisterObjectContractHandlers("/cust/secc", api, api.GetType());
+            api = new SECC.AuthAPI();
+            RegisterObjectContractHandlers("/cust/secc", api, api.GetType());
+            api = new SECC.PersonAPI();
+            RegisterObjectContractHandlers("/cust/secc", api, api.GetType());
+            api = new SECC.SmallGroupAPI();
+            RegisterObjectContractHandlers("/cust/secc", api, api.GetType());
+            api = new SECC.EventAPI();
+            RegisterObjectContractHandlers("/cust/secc", api, api.GetType());
         }
 
 
@@ -171,7 +167,7 @@ namespace Arena.Custom.HDC.WebService
 			HttpContext.Current.Response.ContentType = "text/plain";
 			foreach (RestMethodInfo rmi in registeredHandlers)
 			{
-				sb.AppendLine(rmi.uriTemplate.ToString());
+				sb.AppendLine(rmi.method.ToString() + ": " + rmi.uriTemplate.ToString());
 			}
 			sb.AppendLine("");
 
@@ -432,6 +428,14 @@ namespace Arena.Custom.HDC.WebService
                                 }
                                 else
                                     p = Convert.ChangeType(p, pi.ParameterType);
+                            }
+                        } else
+                        {
+                            try {
+                                DataContractSerializer serializer = new DataContractSerializer(pi.ParameterType);
+                                p = serializer.ReadObject(context.Request.InputStream);
+                            } catch {
+                                // Swallow any errors
                             }
                         }
                     }
@@ -764,7 +768,7 @@ namespace Arena.Custom.HDC.WebService
         /// <returns>An integer indicating the organization ID.</returns>
         static public int DefaultOrganizationID()
         {
-            return Convert.ToInt32(ConfigurationSettings.AppSettings["Organization"]);
+            return Convert.ToInt32(ConfigurationManager.AppSettings["Organization"]);
         }
 
         /// <summary>

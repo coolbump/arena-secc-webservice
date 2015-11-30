@@ -14,6 +14,13 @@ namespace Arena.Custom.HDC.WebService.Contracts
             ID = arena.LookupID;
             Value = arena.ToString();
         }
+        
+        /// <summary>
+        /// Parameterless constructor for serialization
+        /// </summary>
+        public Lookup()
+        {
+        }
 
         [DataMember(EmitDefaultValue = false)]
         public int? ID { get; set; }

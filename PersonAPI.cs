@@ -38,7 +38,6 @@ namespace Arena.Custom.HDC.WebService
             return list;
         }
 
-
         /// <summary>
         /// Retrieve a list of all small group membership for the person.
         /// Security is taken into consideration, so if the logged in user does not
@@ -150,7 +149,6 @@ namespace Arena.Custom.HDC.WebService
             Contracts.GenericListResult<Contracts.ProfileMember> list = new Contracts.GenericListResult<Contracts.ProfileMember>();
             ProfileCollection pmc = new ProfileCollection();
             bool activeOnly = true;
-            int i;
 
 
             //
