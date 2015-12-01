@@ -3,7 +3,7 @@ Arena SECC Web Services
 ===============================================================================
 This project was forked from the Arena HDC Web Service project which was developed as an extension to the built-in Arena Web Services. It provides a new API endpoint through which the internal Arena API can still be accessed. This package also provides extra functionality to extend the Arena Web Services API as well as allows 3rd party DLLs to provide even more functionality by dynamically adding references to new DLLs at run-time.
 
-#Setup
+##Setup
 In order to setup this project in Arena, follow these steps:
 * Build the project
 * Drop the resulting Arena.Custom.HDC.WebService.dll in your Arena bin directory
@@ -12,7 +12,7 @@ In order to setup this project in Arena, follow these steps:
  * **Info** - [http://{Your Arena Domain}/api.ashx/rc/info](http://{Your Arena Domain}/api.ashx/rc/info)
  * **Help** - [http://{Your Arena Domain}/api.ashx/help](http://{Your Arena Domain}/api.ashx/help)
 
-#Development
+##Development
 To create a new API, you can modify any of the existing *API.cs classes.  These are in the base
 of the project as well as the SECC folder.  The SECC ones are specific customizations for
 Southeast Christian Church.  Typically, we encourage extending the API by creating your own
