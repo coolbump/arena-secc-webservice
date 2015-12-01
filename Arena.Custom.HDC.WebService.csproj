@@ -57,6 +57,14 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\Arena 2014.2\packages\Arena.dll.2014.2.100.04114\lib\net40\Arena.dll</HintPath>
     </Reference>
+    <Reference Include="Arena.Custom.SECC.Common.Data, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>packages\Arena.Custom.SECC.Common.1.0.2\lib\net40\Arena.Custom.SECC.Common.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="Arena.Custom.SECC.Common.Util, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>packages\Arena.Custom.SECC.Common.1.0.2\lib\net40\Arena.Custom.SECC.Common.Util.dll</HintPath>
+    </Reference>
     <Reference Include="Arena.Custom.SECC.OAuth">
       <HintPath>..\packages\Arena.Custom.SECC.OAuth.1.0.0\lib\net40\Arena.Custom.SECC.OAuth.dll</HintPath>
     </Reference>
@@ -164,16 +172,6 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\arena-secc-common\Data\Arena.Custom.SECC.Common.Data.csproj">
-      <Project>{42c7c136-47dd-4ea2-979d-807b63113194}</Project>
-      <Name>Arena.Custom.SECC.Common.Data</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\arena-secc-common\Util\Arena.Custom.SECC.Common.Util.csproj">
-      <Project>{c8a44c00-18ad-410e-b478-4a2c06ea5ad6}</Project>
-      <Name>Arena.Custom.SECC.Common.Util</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
