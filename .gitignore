@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/bin/Debug
+/obj/Debug
+/packages
+/Arena.Custom.HDC.WebService.csproj.user
+/Arena.Custom.HDC.WebService.v12.suo
