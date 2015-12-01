@@ -20,4 +20,8 @@ Southeast Christian Church.  Typically, we encourage extending the API by creati
 your new classes in the RegisterInternalHandlers() method of RestAPI.cs (Around Line 120).
 
 ###[Southeast Christian Church](http://www.southeastchristian.org/)
-Southeast Christian Church in Louisville, Kentucky is an evangelical Christian church. 
+Southeast Christian Church in Louisville, Kentucky is an evangelical Christian church. In our 
+mission to connect people to Jesus and one another, Southeast Christian Church has 
+grown into a unified multisite community located in the Greater Louisville/Southern Indiana region. 
+We have multiple campuses serving the specific needs of the areas in which they are located, 
+while receiving centralized leadership and teaching from the campus on Blankenbaker Parkway.
