@@ -1,5 +1,5 @@
 
-[Arena SECC Web Services]
+Arena SECC Web Services
 ===============================================================================
 This project was forked from the Arena HDC Web Service project which was developed as an extension to the built-in Arena Web Services. It provides a new API endpoint through which the internal Arena API can still be accessed. This package also provides extra functionality to extend the Arena Web Services API as well as allows 3rd party DLLs to provide even more functionality by dynamically adding references to new DLLs at run-time.
 
