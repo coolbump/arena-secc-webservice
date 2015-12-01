@@ -9,8 +9,8 @@ In order to setup this project in Arena, follow these steps:
 * Drop the resulting Arena.Custom.HDC.WebService.dll in your Arena bin directory
 * Take the api.ashx and drop it in the root of your Arena install
 * You should be able to use the following links to see your environment:
-** [Info](http://{Your Arena Domain}/api.ashx/rc/info)
-** [Help](http://{Your Arena Domain}/api.ashx/help)
+ * [Info](http://{Your Arena Domain}/api.ashx/rc/info)
+ * [Help](http://{Your Arena Domain}/api.ashx/help)
 
 #Development
 To create a new API, you can modify any of the existing *API.cs classes.  These are in the base
